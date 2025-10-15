@@ -23,8 +23,8 @@ Aplikasi web sederhana berbasis **Flask** dan **Bootstrap 5** untuk mengelola, m
 
 1.  **Clone Repository**
     ```bash
-    git clone [https://github.com/nama-lu/nama-repo-lu.git](https://github.com/nama-lu/nama-repo-lu.git)
-    cd nama-repo-lu
+    git clone [https://github.com/Taufiquramannnnn/webapp-hutkop-V2.git](https://github.com/Taufiquramannnnn/webapp-hutkop-V2.git)
+    cd webapp-hutkop-V2
     ```
 
 2.  **Setup Virtual Environment**
