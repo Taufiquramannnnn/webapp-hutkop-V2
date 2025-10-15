@@ -1,0 +1,311 @@
+/*
+ * style.css
+ * ---------
+ * Penjelasan struktur:
+ * 1. Global & Variables: Warna, font dasar, style umum.
+ * 2. Layout & Navigasi: Style untuk navbar dan container utama.
+ * 3. Komponen Tabel (index.html): Semua yang berhubungan dengan tabel data utama.
+ * 4. Komponen Detail Row: Style untuk baris detail yang bisa di-expand.
+ * 5. Komponen Dashboard: Kartu KPI, chart, dan tabel mini di dashboard.
+ * 6. Komponen Opsi: Bagian upload, export, dan reset di halaman utama.
+ * 7. Utilitas: Badge, flash message, dan helper class lainnya.
+*/
+
+/* --- 1. Global & Variables --- */
+:root {
+  /* Warna utama yang dipakai di seluruh web */
+  --soft-bg: #f3faf5;      /* Background halaman, hijau sangat muda */
+  --brand-green: #198754;  /* Hijau utama (Bootstrap default) */
+  --brand-green-2: #1eaa6a;/* Hijau sekunder, sedikit lebih cerah */
+}
+
+html, body {
+  background: var(--soft-bg);
+}
+
+body.bg-soft {
+  background: var(--soft-bg);
+}
+
+/* Style dasar untuk semua card, border-radius agar sudutnya melengkung */
+.card {
+  border-radius: .9rem;
+  border: none;
+}
+
+/* --- 2. Komponen Tabel Utama (index.html) --- */
+
+/* Wrapper tabel agar bisa scroll horizontal di layar kecil */
+.table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+.table-responsive {
+  border-radius: .75rem; /* Samakan radius dengan card */
+  overflow: hidden;      /* Sembunyikan overflow agar radius terlihat */
+  border: 1px solid #e7e7e7;
+}
+
+/* Header tabel */
+.table thead.table-success {
+  background: #1eaa6a !important; /* Override Bootstrap */
+  color: #fff !important;
+}
+.table thead.table-success th {
+  text-align: center !important;
+  vertical-align: middle !important;
+  font-weight: 600;
+  font-size: .9rem;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border: none !important;
+  white-space: nowrap; /* Mencegah judul kolom jadi dua baris */
+}
+
+/* Body tabel */
+.table tbody tr td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  font-size: .88rem;
+  vertical-align: middle;
+}
+.table tbody tr:hover {
+  background: #f6fff7;
+  transition: background-color .2s ease-in-out;
+}
+.table td.text-end {
+  padding-right: 1.25rem;
+  white-space: nowrap;
+}
+
+/* --- 3. Komponen Detail Row (Dropdown di Tabel) --- */
+.expandable-row {
+  cursor: pointer;
+}
+.expandable-row i.bi {
+  transition: transform .2s;
+}
+.expandable-row[aria-expanded="true"] i.bi {
+  transform: rotate(180deg);
+}
+
+/* Baris detail disembunyikan secara default */
+.detail-row {
+  display: none;
+}
+.detail-row td {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.detail-row.is-open {
+  display: table-row;
+}
+.detail-row.is-open td {
+  padding: 0 !important;
+}
+.table .badge {
+  font-size: .75rem;
+  padding: 6px 10px;
+  line-height: 1;
+}
+
+/* --- 4. Utilitas Badge & Paginasi --- */
+
+.badge-pill {
+  border-radius: 9999px;
+  padding: .25rem .7rem;
+  font-size: .74rem;
+  font-weight: 600;
+  line-height: 1.1;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+.badge-soft-primary { color: #0d6efd; background: rgba(13,110,253,.10); border-color: rgba(13,110,253,.25); }
+.badge-soft-success { color: #198754; background: rgba(25,135,84,.12); border-color: rgba(25,135,84,.28); }
+.badge-soft-warning { color: #b58100; background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.28); }
+
+/* Card yang berisi detail pinjaman per file */
+.detail-card {
+  display: grid;
+  /* Atur layout grid responsif: 2 kolom di mobile, 4 di tablet, dst. */
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  align-items: start;
+}
+@media (min-width: 768px) { .detail-card { grid-template-columns: repeat(4, minmax(140px, 1fr)); } }
+@media (min-width: 992px) { .detail-card { grid-template-columns: repeat(6, minmax(140px, 1fr)); } }
+@media (min-width: 1200px) { .detail-card { grid-template-columns: repeat(9, minmax(120px, 1fr)); gap: 10px; } }
+
+.detail-card .small { color: #6c757d; }
+.detail-card .fw-semibold { font-size: .86rem; }
+
+.flash-messages {
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  z-index: 1050;
+  min-width: 300px;
+}
+.flash-messages .alert {
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .1);
+}
+
+.pagination .page-item .page-link {
+  border-radius: .5rem;
+  margin: 0 3px;
+}
+.pagination .page-item.active .page-link {
+  background: var(--brand-green-2);
+  border-color: var(--brand-green-2);
+}
+
+/* --- 5. Komponen Dashboard --- */
+.navbar {
+  border-bottom: none;
+  background: #fff;
+}
+.navbar-brand {
+  font-weight: 700;
+}
+.btn-header-outline {
+  border-color: var(--brand-green);
+  color: var(--brand-green);
+}
+.btn-header-outline:hover, .btn-header-outline:focus {
+  background: var(--brand-green);
+  color: #fff;
+  border-color: var(--brand-green);
+}
+
+.kpi-card {
+  border-radius: .9rem;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+}
+.kpi-card .card-body {
+  padding: 1rem 1.25rem;
+}
+.kpi-card h3 {
+  font-size: 1.6rem;
+}
+.kpi-icon {
+  font-size: 1.8rem;
+  margin-right: .5rem;
+}
+.soft-card {
+  border: none;
+  border-radius: .9rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+}
+.soft-card .card-header {
+  background: #fff;
+  border: none;
+}
+
+/* Tentukan tinggi canvas chart agar tidak terlalu besar/kecil */
+.chart-status { height: 360px; }
+.chart-divisi { height: 340px; }
+.chart-top10 { height: 540px; }
+
+/* Tabel mini di bawah chart donat (dashboard) */
+.mini-table {
+  border-collapse: collapse !important;
+  table-layout: fixed;
+  width: 100%;
+}
+.mini-table thead th {
+  background: #f8f9fa;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: center !important;
+}
+.mini-table td, .mini-table th {
+  padding: .45rem .6rem;
+  font-size: .9rem;
+}
+.mini-table tbody tr+tr {
+  border-top: 1px solid #ececec;
+}
+.mini-table th:nth-child(1), .mini-table td:nth-child(1) { width: 30%; text-align: center !important; }
+.mini-table th:nth-child(2), .mini-table td:nth-child(2) { width: 30%; text-align: center !important; }
+.mini-table th:nth-child(3), .mini-table td:nth-child(3) { width: 40%; text-align: center !important; }
+
+.kpi-money {
+  display: flex;
+  align-items: baseline;
+  gap: .25rem;
+}
+.kpi-money small {
+  font-size: .7em;
+}
+.header-highlight {
+  background-color: #f3faf5;
+  box-shadow: none;
+  border: none;
+}
+
+/* --- 6. Komponen Opsi (Upload, Export, Reset) --- */
+.opsi-wrap {
+  background: #eef8f1;
+  border: 1px solid #e6f2ea;
+  border-radius: 14px;
+  padding: 20px;
+}
+.opsi-card {
+  background: #fff;
+  border: 1px solid #eaf3ee;
+  border-radius: 14px;
+  padding: 18px;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(16, 155, 91, .08);
+  height: 100%;
+}
+.opsi-title {
+  font-weight: 700;
+  color: #2f6d53;
+  margin-bottom: .75rem !important;
+}
+.opsi-sub {
+  font-size: .82rem;
+  color: #6c757d;
+}
+.opsi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  line-height: 1;
+  margin: 0 auto .5rem;
+}
+.btn-ghost {
+  border: 1px dashed var(--brand-green);
+  background: #f8fdf9;
+  color: var(--brand-green);
+}
+.btn-ghost:hover {
+  background: #e9f9ed;
+}
+.btn-pill {
+  border-radius: 9999px;
+  padding: .45rem .9rem;
+  font-size: .85rem;
+}
+.export-bar {
+  gap: .45rem;
+  justify-content: center;
+}
+.export-bar .btn {
+  min-width: 102px;
+}
+#uploadForm .btn-ghost {
+  margin-top: .25rem;
+}
+

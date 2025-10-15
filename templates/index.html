@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+
+  <!-- Framework & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Custom Stylesheet -->
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+
+<body class="bg-soft">
+  <!-- Navigasi Atas -->
+  <nav class="navbar navbar-expand-lg bg-white shadow-sm sticky-top">
+    <div class="container">
+      <a class="navbar-brand fw-bold text-success" href="{{ url_for('index') }}">
+        <i class="bi bi-journal-check me-2"></i> Hutang Koperasi
+      </a>
+      <div class="ms-auto">
+        <a class="btn btn-outline-success" href="{{ url_for('dashboard') }}">
+          <i class="bi bi-bar-chart-line me-1"></i> Dashboard
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Konten Utama -->
+  <div class="container py-4">
+    <!-- Header Halaman -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body d-flex align-items-center justify-content-between">
+        <div>
+          <h5 class="mb-1 fw-bold">Data Hutang Koperasi</h5>
+          <small class="text-muted">{{ total_filtered or 0 }} debitur terdaftar</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter & Pencarian -->
+    <form class="card shadow-sm border-0 p-3 p-md-4 mb-3" action="{{ url_for('index') }}" method="GET">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label for="search" class="form-label fw-semibold">Cari Nama atau No. Pegawai</label>
+          <input type="text" class="form-control" id="search" name="search" placeholder="Ketik di sini..." value="{{ search }}">
+        </div>
+        <div class="col-md-3">
+          <label for="bagian" class="form-label fw-semibold">Divisi</label>
+          <select class="form-select" id="bagian" name="bagian">
+            <option value="">-- Semua Divisi --</option>
+            {% for bagian in bagian_list %}
+              <option value="{{ bagian }}" {% if bagian == bagian_selected %}selected{% endif %}>{{ bagian }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="status" class="form-label fw-semibold">Status Pinjaman</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">-- Semua Status --</option>
+            <option value="Berjalan" {% if status_selected == "Berjalan" %}selected{% endif %}>Berjalan</option>
+            <option value="Lunas" {% if status_selected == "Lunas" %}selected{% endif %}>Lunas</option>
+            <option value="Belum Bayar" {% if status_selected == "Belum Bayar" %}selected{% endif %}>Belum Bayar</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex">
+          <button type="submit" class="btn btn-success w-100 me-2">
+            <i class="bi bi-funnel-fill"></i> Filter
+          </button>
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </a>
+        </div>
+      </div>
+    </form>
+
+    <!-- Tabel Utama -->
+    <div class="table-responsive shadow-sm">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-success">
+          <tr>
+            <th style="width:30px;"><i class="bi bi-chevron-down"></i></th>
+            <th>No. Pegawai</th>
+            <th>Nama Karyawan</th>
+            <th>Divisi</th>
+            <th>Pinjaman</th>
+            <th>Total Pinjaman</th>
+            <th>Total + Bunga</th>
+            <th>Total Tenor</th>
+            <th>Pembayaran</th>
+            <th>Sisa Tenor</th>
+            <th>Sisa Pinjaman</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if data %}
+            {% for row in data %}
+              {% set sum = row.SUMMARY %}
+              <!-- Baris utama yang bisa diklik -->
+              <tr class="expandable-row" data-bs-toggle="collapse" data-bs-target="#details-{{ loop.index }}" aria-expanded="false" aria-controls="details-{{ loop.index }}">
+                <td class="text-center">
+                  <i class="bi bi-chevron-down text-success toggle-icon" data-target="details-{{ loop.index }}"></i>
+                </td>
+                <td>{{ row.get('NOPEG','-') }}</td>
+                <td>{{ row.get('NAMA','-') }}</td>
+                <td>{{ row.get('BAGIAN','-') }}</td>
+                <td class="text-center">
+                  <span class="badge bg-light text-success border border-success">{{ row.COUNT_PINJAMAN }} Pinjaman</span>
+                </td>
+                <td class="text-end">Rp {{ "{:,.0f}".format(sum.get('JML',0)).replace(',', '.') }}</td>
+                <td class="text-end">Rp {{ "{:,.0f}".format(sum.get('TOTAL_TAGIHAN',0)).replace(',', '.') }}</td>
+                <td class="text-center">{{ sum.get('LAMA',0) }}</td>
+                <td class="text-center">{{ sum.get('ANGSURAN_KE',0) }}</td>
+                <td class="text-center">{{ sum.get('SISA_ANGSURAN',0) }}</td>
+                <td class="text-end fw-semibold text-danger">Rp {{ "{:,.0f}".format(sum.get('SISA_CICILAN',0)).replace(',', '.') }}</td>
+                <td class="text-center">
+                  {% set st = sum.get('STATUS','') %}
+                  <span class="badge-pill
+                        {% if st == 'Lunas' %}badge-soft-success
+                        {% elif st == 'Berjalan' %}badge-soft-primary
+                        {% elif st == 'Belum Bayar' %}badge-soft-warning
+                        {% else %}badge-soft-primary{% endif %}">
+                    {{ st }}
+                  </span>
+                </td>
+              </tr>
+
+              <!-- Baris Detail (tersembunyi) -->
+              <tr class="detail-row">
+                <td colspan="12">
+                  <div class="collapse" id="details-{{ loop.index }}">
+                    <div class="p-3">
+                      {% for d in row.DETAILS %}
+                        <div class="detail-card mb-2">
+                          <div>
+                            <div class="small">File</div>
+                            <div class="fw-semibold"><i class="bi bi-file-earmark-text me-1"></i>{{ d.get('SRC_FILE','-') }}</div>
+                          </div>
+                          <div><div class="small">Pinjaman Pokok</div><div class="fw-semibold">Rp {{ "{:,.0f}".format(d.get('JML',0)).replace(',', '.') }}</div></div>
+                          <div><div class="small">Pokok + Bunga (Rp)</div><div class="fw-semibold">Rp {{ "{:,.0f}".format(d.get('TOTAL_TAGIHAN',0)).replace(',', '.') }}</div></div>
+                          <div><div class="small">Cicilan (Rp)</div><div class="fw-semibold">Rp {{ "{:,.0f}".format(d.get('CICIL',0)).replace(',', '.') }}</div></div>
+                          <div><div class="small">Tenor</div><div class="fw-semibold">{{ d.get('LAMA',0) }}</div></div>
+                          <div><div class="small">Pembayaran</div><div class="fw-semibold text-primary">{{ d.get('ANGSURAN_KE',0) }}</div></div>
+                          <div><div class="small">Sisa Tenor</div><div class="fw-semibold">{{ d.get('SISA_ANGSURAN',0) }}</div></div>
+                          <div><div class="small">Terbayar (Rp)</div><div class="fw-semibold text-success">Rp {{ "{:,.0f}".format(d.get('DIBAYAR',0)).replace(',', '.') }}</div></div>
+                          <div><div class="small">Sisa Pinjaman</div><div class="fw-semibold text-danger">Rp {{ "{:,.0f}".format(d.get('SISA_CICILAN',0)).replace(',', '.') }}</div></div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <!-- Tampilan jika tidak ada data -->
+            <tr><td colspan="12" class="text-center text-muted py-5">Belum ada data.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginasi -->
+    {% if total_pages > 1 %}
+    <nav class="mt-4 d-flex justify-content-center">
+      <ul class="pagination shadow-sm">
+        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+          <a class="page-link" href="{{ url_for('index', page=page-1, search=search, bagian=bagian_selected, status=status_selected) }}">&laquo;</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+          <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('index', page=p, search=search, bagian=bagian_selected, status=status_selected) }}">{{ p }}</a>
+          </li>
+        {% endfor %}
+        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+          <a class="page-link" href="{{ url_for('index', page=page+1, search=search, bagian=bagian_selected, status=status_selected) }}">&raquo;</a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+
+    <!-- Opsi Upload, Export, Reset -->
+    <section class="mt-4 opsi-wrap">
+      <h5 class="text-center fw-bold mb-3">Opsi Data & Laporan</h5>
+      <div class="row g-3">
+        <!-- Upload -->
+        <div class="col-lg-4">
+          <div class="opsi-card h-100">
+            <div class="opsi-icon text-success"><i class="bi bi-cloud-upload"></i></div>
+            <div class="opsi-title">Upload Data</div>
+            <form id="uploadForm" action="{{ url_for('import_file') }}" method="POST" enctype="multipart/form-data">
+              <label for="importFile" class="btn btn-ghost btn-pill w-100">
+                <i class="bi bi-hdd-stack me-2"></i> Pilih File DBF
+              </label>
+              <input type="file" id="importFile" name="file" class="d-none" multiple>
+            </form>
+            <div class="opsi-sub mt-2">Bisa pilih banyak file sekaligus</div>
+          </div>
+        </div>
+
+        <!-- Export -->
+        <div class="col-lg-4">
+          <div class="opsi-card h-100">
+            <div class="opsi-icon text-primary"><i class="bi bi-download"></i></div>
+            <div class="opsi-title">Export Laporan</div>
+            <div class="d-flex export-bar flex-wrap">
+              <a href="{{ url_for('export_csv') }}" class="btn btn-outline-success btn-pill">
+                <i class="bi bi-filetype-csv me-1"></i> CSV
+              </a>
+              <a href="{{ url_for('export_excel') }}" class="btn btn-outline-primary btn-pill">
+                <i class="bi bi-filetype-xlsx me-1"></i> Excel
+              </a>
+              <a href="{{ url_for('export_pdf') }}" class="btn btn-outline-danger btn-pill">
+                <i class="bi bi-filetype-pdf me-1"></i> PDF
+              </a>
+            </div>
+            <div class="opsi-sub mt-3">CSV, Excel, atau PDF</div>
+          </div>
+        </div>
+
+        <!-- Reset -->
+        <div class="col-lg-4">
+          <div class="opsi-card h-100">
+            <div class="opsi-icon text-danger"><i class="bi bi-exclamation-octagon"></i></div>
+            <div class="opsi-title">Reset Data</div>
+            <form class="d-grid" action="{{ url_for('reset_data') }}" method="POST"
+                  onsubmit="return confirm('Anda yakin ingin menghapus semua data yang sudah diunggah? Tindakan ini tidak bisa dibatalkan.');">
+              <button class="btn btn-outline-danger btn-pill">
+                <i class="bi bi-trash3 me-1"></i> Reset Semua Data
+              </button>
+            </form>
+            <div class="opsi-sub mt-2">Hapus semua file data di server</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- JavaScript -->
+  <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+  <script>
+    // Script ini berfungsi untuk:
+    // 1. Mengubah ikon panah (atas/bawah) saat baris detail di-expand/collapse.
+    // 2. Memberi class 'is-open' pada <tr> detail agar bisa diberi style khusus.
+    // 3. Membuat form upload langsung tersubmit saat user memilih file.
+    document.addEventListener('DOMContentLoaded', function () {
+      // 1 & 2: Handle expand/collapse
+      document.querySelectorAll('.collapse').forEach(function (c) {
+        const id = c.getAttribute('id');
+        const detailTr = c.closest('tr.detail-row');
+
+        c.addEventListener('show.bs.collapse', function () {
+          const icon = document.querySelector('.toggle-icon[data-target="' + id + '"]');
+          if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
+          if (detailTr) detailTr.classList.add('is-open');
+        });
+
+        c.addEventListener('hide.bs.collapse', function () {
+          const icon = document.querySelector('.toggle-icon[data-target="' + id + '"]');
+          if (icon) { icon.classList.remove('bi-chevron-up'); icon.classList.add('bi-chevron-down'); }
+          if (detailTr) detailTr.classList.remove('is-open');
+        });
+      });
+
+      // 3: Auto-submit form upload
+      const input = document.getElementById('importFile');
+      if (input) {
+        input.addEventListener('change', function(){
+          if (!this.files || this.files.length === 0) return;
+          this.form && this.form.submit();
+        });
+      }
+    });
+  </script>
+</body>
+</html>
+

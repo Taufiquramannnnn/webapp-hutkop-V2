@@ -1,0 +1,22 @@
+# ==========================================================
+# Daftar Pustaka (Library) Python untuk Aplikasi HutKop
+# ==========================================================
+# Direkomendasikan untuk menginstall menggunakan virtual environment.
+#
+# Perintah instalasi:
+# pip install -r requirements.txt
+# ==========================================================
+
+# --- Core Framework ---
+Flask==3.0.3              # Kerangka utama aplikasi web.
+
+# --- Data Processing ---
+pandas==2.2.2             # Untuk membaca file Excel dan manipulasi data.
+dbfread==2.1.0            # Khusus untuk membaca file database .dbf.
+openpyxl==3.1.2           # Diperlukan oleh pandas untuk menangani file .xlsx.
+
+# --- Report Generation ---
+reportlab==4.2.0          # Untuk membuat dan mengekspor laporan ke format PDF.
+
+# --- (Optional) Packaging ---
+pyinstaller==6.9.0        # Untuk mengubah script Python <.py> menjadi aplikasi executable.
