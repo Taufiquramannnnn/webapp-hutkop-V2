@@ -120,7 +120,7 @@
                 <td class="text-center">{{ sum.get('LAMA',0) }}</td>
                 <td class="text-center">{{ sum.get('ANGSURAN_KE',0) }}</td>
                 <td class="text-center">{{ sum.get('SISA_ANGSURAN',0) }}</td>
-                <td class="text-end fw-semibold text-danger">Rp {{ "{:,.0f}".format(sum.get('SISA_CICILAN',0)).replace(',', '.') }}</td>
+                <td class="text-start fw-semibold text-danger">Rp {{ "{:,.0f}".format(sum.get('SISA_CICILAN',0)).replace(',', '.') }}</td>
                 <td class="text-center">
                   {% set st = sum.get('STATUS','') %}
                   <span class="badge-pill
