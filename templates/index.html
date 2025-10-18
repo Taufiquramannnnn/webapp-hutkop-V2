@@ -8,6 +8,10 @@
   <!-- Framework & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  
+  <!-- Choices.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+  
   <!-- Custom Stylesheet -->
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
@@ -48,8 +52,9 @@
         </div>
         <div class="col-md-3">
           <label for="bagian" class="form-label fw-semibold">Divisi</label>
-          <select class="form-select" id="bagian" name="bagian">
-            <option value="">-- Semua Divisi --</option>
+          <!-- Dropdown Divisi dengan Choices.js -->
+          <select id="bagian-filter" name="bagian">
+            <option value="">Cari Divisi / Bagian</option>
             {% for bagian in bagian_list %}
               <option value="{{ bagian }}" {% if bagian == bagian_selected %}selected{% endif %}>{{ bagian }}</option>
             {% endfor %}
@@ -57,8 +62,9 @@
         </div>
         <div class="col-md-3">
           <label for="status" class="form-label fw-semibold">Status Pinjaman</label>
-          <select class="form-select" id="status" name="status">
-            <option value="">-- Semua Status --</option>
+           <!-- Dropdown Status dengan Choices.js (tanpa search) -->
+          <select id="status-filter" name="status">
+            <option value="">Cari Status Pinjaman</option>
             <option value="Berjalan" {% if status_selected == "Berjalan" %}selected{% endif %}>Berjalan</option>
             <option value="Lunas" {% if status_selected == "Lunas" %}selected{% endif %}>Lunas</option>
             <option value="Belum Bayar" {% if status_selected == "Belum Bayar" %}selected{% endif %}>Belum Bayar</option>
@@ -191,7 +197,7 @@
             <div class="opsi-title">Upload Data</div>
             <form id="uploadForm" action="{{ url_for('import_file') }}" method="POST" enctype="multipart/form-data">
               <label for="importFile" class="btn btn-ghost btn-pill w-100">
-                <i class="bi bi-hdd-stack me-2"></i> Pilih File DBF
+                <i class="bi bi-hdd-stack me-2"></i> Pilih File DBF/XLSX
               </label>
               <input type="file" id="importFile" name="file" class="d-none" multiple>
             </form>
@@ -240,13 +246,31 @@
 
   <!-- JavaScript -->
   <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  
   <script>
-    // Script ini berfungsi untuk:
-    // 1. Mengubah ikon panah (atas/bawah) saat baris detail di-expand/collapse.
-    // 2. Memberi class 'is-open' pada <tr> detail agar bisa diberi style khusus.
-    // 3. Membuat form upload langsung tersubmit saat user memilih file.
     document.addEventListener('DOMContentLoaded', function () {
-      // 1 & 2: Handle expand/collapse
+      // Inisialisasi Choices.js untuk filter Divisi (dengan search)
+      const bagianFilter = new Choices('#bagian-filter', {
+        searchEnabled: true,
+        itemSelectText: 'Pilih',
+        shouldSort: false,
+        placeholder: true,
+        placeholderValue: 'Cari Divisi / Bagian',
+        removeItemButton: true,
+      });
+
+      // Inisialisasi Choices.js untuk filter Status (TANPA search)
+      const statusFilter = new Choices('#status-filter', {
+        searchEnabled: false,
+        itemSelectText: 'Pilih',
+        shouldSort: false,
+        placeholder: true,
+        placeholderValue: 'Cari Status Pinjaman',
+        removeItemButton: true,
+      });
+
+      // --- Script lainnya (expand/collapse & auto-upload) ---
       document.querySelectorAll('.collapse').forEach(function (c) {
         const id = c.getAttribute('id');
         const detailTr = c.closest('tr.detail-row');
@@ -264,7 +288,6 @@
         });
       });
 
-      // 3: Auto-submit form upload
       const input = document.getElementById('importFile');
       if (input) {
         input.addEventListener('change', function(){

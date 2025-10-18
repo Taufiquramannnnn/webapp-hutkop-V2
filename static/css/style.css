@@ -3,12 +3,12 @@
  * ---------
  * Penjelasan struktur:
  * 1. Global & Variables: Warna, font dasar, style umum.
- * 2. Layout & Navigasi: Style untuk navbar dan container utama.
- * 3. Komponen Tabel (index.html): Semua yang berhubungan dengan tabel data utama.
- * 4. Komponen Detail Row: Style untuk baris detail yang bisa di-expand.
+ * 2. Komponen Tabel (index.html): Semua yang berhubungan dengan tabel data utama.
+ * 3. Komponen Detail Row: Style untuk baris detail yang bisa di-expand.
+ * 4. Utilitas: Badge, flash message, dan helper class lainnya.
  * 5. Komponen Dashboard: Kartu KPI, chart, dan tabel mini di dashboard.
  * 6. Komponen Opsi: Bagian upload, export, dan reset di halaman utama.
- * 7. Utilitas: Badge, flash message, dan helper class lainnya.
+ * 7. Override Library: Custom style untuk library eksternal (Choices.js).
 */
 
 /* --- 1. Global & Variables --- */
@@ -35,11 +35,12 @@ body.bg-soft {
 
 /* --- 2. Komponen Tabel Utama (index.html) --- */
 
-/* Wrapper tabel agar bisa scroll horizontal di layar kecil */
 .table {
   border-collapse: collapse !important;
   border-spacing: 0 !important;
 }
+
+/* Wrapper tabel agar bisa scroll horizontal di layar kecil */
 .table-responsive {
   border-radius: .75rem; /* Samakan radius dengan card */
   overflow: hidden;      /* Sembunyikan overflow agar radius terlihat */
@@ -48,7 +49,7 @@ body.bg-soft {
 
 /* Header tabel */
 .table thead.table-success {
-  background: #1eaa6a !important; /* Override Bootstrap */
+  background: var(--brand-green-2) !important; /* Override Bootstrap */
   color: #fff !important;
 }
 .table thead.table-success th {
@@ -83,7 +84,7 @@ body.bg-soft {
   cursor: pointer;
 }
 .expandable-row i.bi {
-  transition: transform .2s;
+  transition: transform .2s; /* Animasi panah berputar */
 }
 .expandable-row[aria-expanded="true"] i.bi {
   transform: rotate(180deg);
@@ -99,10 +100,7 @@ body.bg-soft {
   background: transparent !important;
 }
 .detail-row.is-open {
-  display: table-row;
-}
-.detail-row.is-open td {
-  padding: 0 !important;
+  display: table-row; /* Tampilkan baris jika class 'is-open' ditambahkan via JS */
 }
 .table .badge {
   font-size: .75rem;
@@ -113,7 +111,7 @@ body.bg-soft {
 /* --- 4. Utilitas Badge & Paginasi --- */
 
 .badge-pill {
-  border-radius: 9999px;
+  border-radius: 9999px; /* Membuat badge jadi bulat sempurna (pil) */
   padding: .25rem .7rem;
   font-size: .74rem;
   font-weight: 600;
@@ -124,6 +122,7 @@ body.bg-soft {
   justify-content: center;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
 }
+/* Variasi warna badge dengan background transparan */
 .badge-soft-primary { color: #0d6efd; background: rgba(13,110,253,.10); border-color: rgba(13,110,253,.25); }
 .badge-soft-success { color: #198754; background: rgba(25,135,84,.12); border-color: rgba(25,135,84,.28); }
 .badge-soft-warning { color: #b58100; background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.28); }
@@ -147,6 +146,7 @@ body.bg-soft {
 .detail-card .small { color: #6c757d; }
 .detail-card .fw-semibold { font-size: .86rem; }
 
+/* Notifikasi (flash message) yang muncul di pojok kanan atas */
 .flash-messages {
   position: fixed;
   top: 80px;
@@ -190,16 +190,9 @@ body.bg-soft {
   border: none;
   box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
 }
-.kpi-card .card-body {
-  padding: 1rem 1.25rem;
-}
-.kpi-card h3 {
-  font-size: 1.6rem;
-}
-.kpi-icon {
-  font-size: 1.8rem;
-  margin-right: .5rem;
-}
+.kpi-card .card-body { padding: 1rem 1.25rem; }
+.kpi-card h3 { font-size: 1.6rem; }
+.kpi-icon { font-size: 1.8rem; margin-right: .5rem; }
 .soft-card {
   border: none;
   border-radius: .9rem;
@@ -227,30 +220,15 @@ body.bg-soft {
   border-bottom: 1px solid #e5e7eb;
   text-align: center !important;
 }
-.mini-table td, .mini-table th {
-  padding: .45rem .6rem;
-  font-size: .9rem;
-}
-.mini-table tbody tr+tr {
-  border-top: 1px solid #ececec;
-}
+.mini-table td, .mini-table th { padding: .45rem .6rem; font-size: .9rem; }
+.mini-table tbody tr+tr { border-top: 1px solid #ececec; }
 .mini-table th:nth-child(1), .mini-table td:nth-child(1) { width: 30%; text-align: center !important; }
 .mini-table th:nth-child(2), .mini-table td:nth-child(2) { width: 30%; text-align: center !important; }
 .mini-table th:nth-child(3), .mini-table td:nth-child(3) { width: 40%; text-align: center !important; }
 
-.kpi-money {
-  display: flex;
-  align-items: baseline;
-  gap: .25rem;
-}
-.kpi-money small {
-  font-size: .7em;
-}
-.header-highlight {
-  background-color: #f3faf5;
-  box-shadow: none;
-  border: none;
-}
+.kpi-money { display: flex; align-items: baseline; gap: .25rem; }
+.kpi-money small { font-size: .7em; }
+.header-highlight { background-color: #f3faf5; box-shadow: none; border: none; }
 
 /* --- 6. Komponen Opsi (Upload, Export, Reset) --- */
 .opsi-wrap {
@@ -268,44 +246,63 @@ body.bg-soft {
   box-shadow: 0 6px 18px rgba(16, 155, 91, .08);
   height: 100%;
 }
-.opsi-title {
-  font-weight: 700;
-  color: #2f6d53;
-  margin-bottom: .75rem !important;
+.opsi-title { font-weight: 700; color: #2f6d53; margin-bottom: .75rem !important; }
+.opsi-sub { font-size: .82rem; color: #6c757d; }
+.opsi-icon { display: inline-flex; align-items: center; justify-content: center; font-size: 1.75rem; line-height: 1; margin: 0 auto .5rem; }
+.btn-ghost { border: 1px dashed var(--brand-green); background: #f8fdf9; color: var(--brand-green); }
+.btn-ghost:hover { background: #e9f9ed; }
+.btn-pill { border-radius: 9999px; padding: .45rem .9rem; font-size: .85rem; }
+.export-bar { gap: .45rem; justify-content: center; }
+.export-bar .btn { min-width: 102px; }
+#uploadForm .btn-ghost { margin-top: .25rem; }
+
+/* --- 7. Override Library (Choices.js) --- */
+/* Blok ini untuk membuat tampilan Choices.js mirip dengan form-control Bootstrap */
+.choices__inner {
+  background-color: var(--bs-body-bg) !important;
+  border: var(--bs-border-width) solid var(--bs-border-color) !important;
+  border-radius: var(--bs-border-radius) !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+  min-height: auto !important;
+
+  /* --- KUNCI PERBAIKAN FINAL --- */
+  /* 1. Paksa tinggi elemen agar sama persis dengan form-control Bootstrap */
+  /* Formula ini (1.5em + .75rem + 2px) adalah standar tinggi input Bootstrap */
+  height: calc(1.5em + .75rem + 2px) !important;
+  /* 2. Gunakan flexbox untuk menengahkan teks secara vertikal */
+  display: flex !important;
+  align-items: center !important;
+  /* 3. Atur padding horizontal saja, karena vertikal sudah di-handle flex */
+  padding: 0 0.75rem !important;
 }
-.opsi-sub {
-  font-size: .82rem;
-  color: #6c757d;
+
+
+/* Style saat filter di-klik/fokus */
+.is-focused .choices__inner,
+.is-open .choices__inner {
+  border-color: #86b7fe !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
 }
-.opsi-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.75rem;
-  line-height: 1;
-  margin: 0 auto .5rem;
+
+.choices__list--dropdown {
+  border-radius: var(--bs-border-radius) !important;
+  border: var(--bs-border-width) solid var(--bs-border-color) !important;
 }
-.btn-ghost {
-  border: 1px dashed var(--brand-green);
-  background: #f8fdf9;
-  color: var(--brand-green);
+
+/* Ganti panah dropdown default Choices.js dengan panah Bootstrap */
+.choices[data-type*="select-one"]::after {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  height: 0.8rem;
+  width: 0.8rem;
+  right: 12.5px;
+  top: 50%;
+  margin-top: -0.4rem;
+  border: none;
 }
-.btn-ghost:hover {
-  background: #e9f9ed;
-}
-.btn-pill {
-  border-radius: 9999px;
-  padding: .45rem .9rem;
-  font-size: .85rem;
-}
-.export-bar {
-  gap: .45rem;
-  justify-content: center;
-}
-.export-bar .btn {
-  min-width: 102px;
-}
-#uploadForm .btn-ghost {
-  margin-top: .25rem;
+
+/* Sembunyikan placeholder yang duplikat di dalam daftar dropdown */
+.choices__list--dropdown .choices__item--choice[data-value=""] {
+  display: none;
 }
 

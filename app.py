@@ -1,25 +1,27 @@
 """
 app.py
 ------
-Endpoint utama aplikasi Flask untuk dashboard koperasi.
-Fungsi:
-- Load data .dbf/.xlsx dari folder /uploads.
-- Normalisasi & agregasi data per NOPEG (Nomor Pegawai).
-- Menyediakan view tabel dengan filter, search, paginasi.
-- Menyediakan view dashboard dengan ringkasan visual.
-- Handle upload, export (CSV, Excel, PDF), dan reset data.
+Aplikasi Flask untuk tabel & dashboard koperasi.
+- Load file DBF/XLSX dari /uploads, normalisasi, dan agregasi per NOPEG.
+- Tersedia filter/pencarian/paginasi + ekspor CSV/Excel/PDF + dashboard ringkasan.
 """
+
 # ==============================================================================
 # 1) IMPORTS
 # ==============================================================================
-import os, glob, logging, webbrowser, threading, time
+import os
+import glob
+import logging
+import webbrowser
+import threading
+import time
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash
 from dbfread import DBF
-from custom_parser import CustomFieldParser # Asumsi ada file custom_parser.py
+from custom_parser import CustomFieldParser
 import pandas as pd
 from werkzeug.utils import secure_filename
 
-# --- ReportLab untuk PDF ---
+# ReportLab (PDF)
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -31,7 +33,7 @@ from reportlab.lib.units import cm
 # 2) APP CONFIG
 # ==============================================================================
 app = Flask(__name__)
-app.secret_key = "supersecret" # Ganti dengan secret key yang lebih aman
+app.secret_key = "supersecret"
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -42,7 +44,6 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {"dbf", "xlsx"}
 
-# Mapping kolom internal ke nama yang lebih user-friendly untuk di UI & export.
 COLUMN_MAPPING = {
     "NOPEG": "No. Pegawai",
     "NAMA": "Nama Karyawan",
@@ -64,6 +65,28 @@ COLUMN_MAPPING = {
 def allowed_file(filename: str) -> bool:
     """Cek ekstensi file, cuma izinkan .dbf atau .xlsx."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def clean_division_name(name: str) -> str:
+    """Normalisasi nama divisi yang berantakan."""
+    name = name.strip().lower()
+    
+    # Kamus untuk standardisasi nama divisi
+    division_map = {
+        'adm & k': 'Adm & K', 'adm & keu': 'Adm & K', 'adm & acct': 'Adm & K', 'f & a': 'Adm & K',
+        'moa': 'MOA', 'm o a': 'MOA',
+        'logistik': 'Logistik', 'logistic': 'Logistik',
+        'teknik': 'Teknik', 'tehnik': 'Teknik',
+        'busdev': 'Bus-Dev', 'bus-dev': 'Bus-Dev',
+        'gdg o. jad': 'Gdg O. Jad', 'g o j': 'Gdg O. Jad',
+        'pema-mutu': 'Pem-Mutu', 'pem-mutu': 'Pem-Mutu', 'pemasmutu': 'Pem-Mutu',
+        'pros-dev': 'Pros-Dev', 'prosdev': 'Pros-Dev',
+        'prod': 'Produksi', 'produksi': 'Produksi',
+        'gbb': 'Gdg B. Bak', 'gdg b. bak': 'Gdg B. Bak'
+    }
+    
+    # Cari di kamus, kalau tidak ada, kembalikan nama asli dengan format Title Case
+    return division_map.get(name, name.title())
+
 
 def read_dbf_file(path: str):
     """Baca file DBF. Pakai parser custom & fallback ke list kosong jika error."""
@@ -125,7 +148,8 @@ def normalize_row(row: dict) -> dict:
     # Normalisasi field dasar (teks)
     r["NOPEG"]  = str(r.get("NOPEG") or "").strip()
     r["NAMA"]   = str(r.get("NAMA") or "").strip()
-    r["BAGIAN"] = str(r.get("BAGIAN") or "").strip()
+    # Gunakan fungsi cleaning untuk divisi
+    r["BAGIAN"] = clean_division_name(str(r.get("BAGIAN") or ""))
 
     # Normalisasi field angka
     r["JML"]   = _to_float_safe(r.get("JML") or r.get("JML_DDL") or r.get("JUMLAH") or 0, 0.0)
@@ -248,8 +272,8 @@ def index():
         end = start + per_page
         paginated_data = filtered[start:end]
 
-        # Siapkan list divisi untuk dropdown filter
-        bagian_list = sorted({(r.get("BAGIAN") or "").strip() for r in all_data if (r.get("BAGIAN") or "").strip()})
+        # Siapkan list divisi untuk dropdown filter (setelah di-clean)
+        bagian_list = sorted({r.get("BAGIAN") for r in all_data if r.get("BAGIAN")})
 
         return render_template(
             "index.html", data=paginated_data, bagian_list=bagian_list,
@@ -261,6 +285,7 @@ def index():
         logger.error(f"Error di halaman utama: {str(e)}")
         flash("Terjadi kesalahan fatal saat memuat data. Silakan cek log.", "danger")
         return render_template("index.html", data=[], bagian_list=[], page=1, total_pages=1)
+
 
 @app.route("/reset_data", methods=["POST"])
 def reset_data():
@@ -297,7 +322,6 @@ def import_file():
                 errors.append(f"{filename}: Format file tidak didukung (hanya .dbf atau .xlsx).")
                 continue
             
-            # Hindari timpa file, tambahkan timestamp jika nama file sudah ada
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             if os.path.exists(filepath):
                 base, ext = os.path.splitext(filename)
@@ -385,7 +409,6 @@ def export_pdf():
         )
 
         styles = getSampleStyleSheet()
-        # Custom style untuk PDF
         style_title = ParagraphStyle(name='Title', parent=styles['h1'], alignment=TA_CENTER, spaceAfter=12, fontSize=14)
         style_body_left = ParagraphStyle(name='BodyLeft', parent=styles['Normal'], alignment=TA_LEFT, fontSize=7, leading=9)
         style_body_center = ParagraphStyle(name='BodyCenter', parent=styles['Normal'], alignment=TA_CENTER, fontSize=7, leading=9)
@@ -395,7 +418,6 @@ def export_pdf():
         header = [Paragraph(text, style_header) for text in COLUMN_MAPPING.values()]
         table_data = [header]
 
-        # Siapkan data untuk tabel PDF
         keys = list(COLUMN_MAPPING.keys())
         for item in data:
             s = item["SUMMARY"]
@@ -409,11 +431,10 @@ def export_pdf():
             for k in keys:
                 v = row_dict.get(k, "")
                 if k in ("JML", "TOTAL_TAGIHAN", "DIBAYAR", "SISA_CICILAN"):
-                    v = f"{float(v):,.0f}" # Format angka dengan pemisah ribuan
+                    v = f"{float(v):,.0f}"
                 row_cells.append(Paragraph(str(v), style_body_center if k not in ("NAMA","BAGIAN") else style_body_left))
             table_data.append(row_cells)
 
-        # Atur lebar kolom (total harus mendekati lebar A4 landscape ~27.7cm)
         col_widths = [2.2*cm, 4.3*cm, 2.8*cm, 2.5*cm, 2.5*cm, 2.3*cm, 2.3*cm, 2.3*cm, 2.5*cm, 2.5*cm, 2.0*cm]
 
         table = Table(table_data, colWidths=col_widths, repeatRows=1)
@@ -440,14 +461,13 @@ def dashboard():
     try:
         all_data = load_data()
 
-        # Handle jika tidak ada data, render template dengan flag
         if not all_data:
             return render_template(
                 "dashboard.html", title="Dashboard Ringkasan",
-                total_pinjaman=0, sisa_pinjaman=0, total_karyawan=0,
-                status_count={}, bagian_count={}, top_borrowers=[],
-                bagian_pinjaman={}, bagian_sisa={}, bagian_dibayar={},
-                status_details={}
+                total_pinjaman_pokok=0, total_tagihan=0, sisa_pinjaman=0, total_karyawan=0,
+                status_details={"labels": [], "counts": [], "amounts": [], "percentages": []},
+                bagian_count={}, top_borrowers=[],
+                bagian_pinjaman={}, bagian_sisa={}, bagian_dibayar={}
             )
 
         # 1. Agregasi untuk KPI & Chart Status
@@ -480,27 +500,34 @@ def dashboard():
         
         bagian_dibayar_raw = {k: max(bagian_total_raw.get(k, 0) - bagian_sisa_raw.get(k, 0), 0) for k in bagian_total_raw.keys()}
 
-        # Ambil top 10 divisi berdasarkan total pinjaman
         sorted_bagian_total = sorted(bagian_total_raw.items(), key=lambda x: x[1], reverse=True)[:10]
         top_10_bagian_pinjaman = {k: v for k, v in sorted_bagian_total}
-        top_10_bagian_sisa = {k: bagian_sisa_raw[k] for k, _ in sorted_bagian_total}
-        top_10_bagian_dibayar = {k: bagian_dibayar_raw[k] for k, _ in sorted_bagian_total}
+        top_10_bagian_sisa = {k: bagian_sisa_raw.get(k, 0) for k, _ in sorted_bagian_total}
+        top_10_bagian_dibayar = {k: bagian_dibayar_raw.get(k, 0) for k, _ in sorted_bagian_total}
 
         sorted_bagian_count = sorted(bagian_count_raw.items(), key=lambda x: x[1], reverse=True)[:10]
         top_10_bagian_count = {k: v for k, v in sorted_bagian_count}
 
         # 3. Kalkulasi KPI utama
-        total_kontrak_semua = sum(r["SUMMARY"].get("TOTAL_TAGIHAN", 0) for r in all_data)
+        total_pinjaman_pokok = sum(r["SUMMARY"].get("JML", 0) for r in all_data)
+        total_tagihan_semua = sum(r["SUMMARY"].get("TOTAL_TAGIHAN", 0) for r in all_data)
         total_sisa_semua = sum(r["SUMMARY"].get("SISA_CICILAN", 0) for r in all_data)
+
 
         # 4. Data untuk top 10 peminjam terbesar
         sorted_by_kontrak = sorted(all_data, key=lambda x: x["SUMMARY"].get("TOTAL_TAGIHAN", 0), reverse=True)
         top_borrowers = []
         for r in sorted_by_kontrak[:10]:
-            total_kontrak = r["SUMMARY"]["TOTAL_TAGIHAN"]
-            sisa = r["SUMMARY"]["SISA_CICILAN"]
+            # FIX: Gunakan .get() untuk akses aman, mencegah error jika key tidak ada
+            total_kontrak = r["SUMMARY"].get("TOTAL_TAGIHAN", 0)
+            sisa = r["SUMMARY"].get("SISA_CICILAN", 0)
             dibayar = max(total_kontrak - sisa, 0)
-            top_borrowers.append({"nama": r["NAMA"], "jumlah": total_kontrak, "sisa": sisa, "dibayar": dibayar})
+            top_borrowers.append({
+                "nama": r.get("NAMA", "N/A"), 
+                "jumlah": total_kontrak, 
+                "sisa": sisa, 
+                "dibayar": dibayar
+            })
 
         return render_template(
             "dashboard.html",
@@ -510,7 +537,8 @@ def dashboard():
             bagian_pinjaman=top_10_bagian_pinjaman,
             bagian_sisa=top_10_bagian_sisa,
             bagian_dibayar=top_10_bagian_dibayar,
-            total_pinjaman=total_kontrak_semua,
+            total_pinjaman_pokok=total_pinjaman_pokok,
+            total_tagihan=total_tagihan_semua,
             sisa_pinjaman=total_sisa_semua,
             total_karyawan=total_karyawan,
             top_borrowers=top_borrowers,
@@ -524,7 +552,6 @@ def dashboard():
 # 5) ENTRY POINT
 # ==============================================================================
 if __name__ == "__main__":
-    # Buka browser otomatis setelah server siap
     def open_browser():
         webbrowser.open("http://127.0.0.1:5000/")
     threading.Timer(1.0, open_browser).start()
