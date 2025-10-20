@@ -4,17 +4,22 @@ app.py
 Aplikasi Flask untuk tabel & dashboard koperasi.
 - Load file DBF/XLSX dari /uploads, normalisasi, dan agregasi per NOPEG.
 - Tersedia filter/pencarian/paginasi + ekspor CSV/Excel/PDF + dashboard ringkasan.
+- Tambahan (patch): filter 'Jenis Pinjaman' berbasis nama file & Bon Cicilan (PDF per karyawan).
+- NEW: Export BON massal (ZIP) + PDF per orang bisa ikut filter jenis.
 """
 
 # ==============================================================================
 # 1) IMPORTS
 # ==============================================================================
 import os
+import io  # NEW: untuk buffer PDF saat zip
 import glob
+import zipfile  # NEW: buat ZIP bon massal
 import logging
 import webbrowser
 import threading
 import time
+from datetime import datetime  # waktu cetak bon
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash
 from dbfread import DBF
 from custom_parser import CustomFieldParser
@@ -22,9 +27,9 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 
 # ReportLab (PDF)
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4, landscape, A5
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.units import cm
@@ -66,11 +71,72 @@ def allowed_file(filename: str) -> bool:
     """Cek ekstensi file, cuma izinkan .dbf atau .xlsx."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+# ============================ JENIS PINJAMAN ============================
+# REFACTOR (robust): klasifikasi jenis pinjaman dari nama file
+# - Toleran typo/alias umum (mis. "Elektronil" → "Elektronik")
+# - Urutan cek: pola spesifik dulu → umum. Jangan kebalik.
+def classify_loan_type(filename: str) -> str:
+    base = os.path.splitext(filename)[0].lower()
+
+    # normalisasi kasar: satukan pemisah + buang karakter noise
+    safe = (
+        base.replace("_", "-")
+            .replace(" ", "-")
+            .replace(".", "-")
+            .replace("--", "-")
+    )
+
+    # --- helper kecil yang cepat ---
+    def has_num(n: int) -> bool:
+        s = str(n)
+        # deteksi angka berdiri sendiri atau nyambung (mot10, -10, 10-)
+        return (f"-{s}" in safe) or (f"{s}-" in safe) or (safe.endswith(s)) or (f"mot{s}" in safe) or (f"mtr{s}" in safe)
+
+    # kamus alias/typo → flag
+    elek_tokens = ("elektronik", "elektron", "elek", "elec", "el", "elektronil", "elektron1", "elektronik1")
+    motor_tokens = ("motor", "mot", "mtr")
+    top_tokens   = ("topup", "top-up", "tpup", "tu", "tup", "top")
+    uang_tokens  = ("uang", "ua")
+    pinj_tokens  = ("pinjaman", "pinjam", "pinj", "pjm")
+    cash_tokens  = ("cash", "tunai", "kas", "csh")
+
+    def any_in(tokens):  # micro util
+        return any(t in safe for t in tokens)
+
+    is_elek  = any_in(elek_tokens)
+    is_motor = any_in(motor_tokens)
+    is_top   = any_in(top_tokens)
+    is_uang  = any_in(uang_tokens) or ("topupuang" in safe) or ("pinjuang" in safe)
+    is_pinj  = any_in(pinj_tokens)
+    is_cash  = any_in(cash_tokens)
+
+    # ===== RULES (spesifik → umum) =====
+    if is_elek and is_top:
+        return "Elektronik Top Up"
+    if is_elek and is_uang:
+        return "Elektronik Uang"
+    if is_elek and (has_num(1) or "elek1" in safe or "el1" in safe):
+        return "Elektronik 1"
+    if is_motor and has_num(10):
+        return "Motor 10"
+    if is_motor and has_num(8):
+        return "Motor 8"
+    if is_motor and (has_num(1) or "mot1" in safe or "mtr1" in safe):
+        return "Motor 1"
+    if not is_elek and is_top and is_uang:
+        return "Top up uang"
+    if is_cash:
+        return "Pinjaman cash"
+    if not is_elek and is_pinj and is_uang:
+        return "Pinjaman uang"
+    return "Lainnya"
+# =======================================================================
+
+
 def clean_division_name(name: str) -> str:
     """Normalisasi nama divisi yang berantakan."""
     name = name.strip().lower()
-    
-    # Kamus untuk standardisasi nama divisi
     division_map = {
         'adm & k': 'Adm & K', 'adm & keu': 'Adm & K', 'adm & acct': 'Adm & K', 'f & a': 'Adm & K',
         'moa': 'MOA', 'm o a': 'MOA',
@@ -83,8 +149,6 @@ def clean_division_name(name: str) -> str:
         'prod': 'Produksi', 'produksi': 'Produksi',
         'gbb': 'Gdg B. Bak', 'gdg b. bak': 'Gdg B. Bak'
     }
-    
-    # Cari di kamus, kalau tidak ada, kembalikan nama asli dengan format Title Case
     return division_map.get(name, name.title())
 
 
@@ -97,6 +161,7 @@ def read_dbf_file(path: str):
         logger.error(f"Gagal membaca file DBF {path}: {e}")
         return []
 
+
 def read_excel_file(path: str):
     """Baca file Excel. Fallback ke list kosong jika error."""
     try:
@@ -105,6 +170,7 @@ def read_excel_file(path: str):
     except Exception as e:
         logger.error(f"Gagal membaca file Excel {path}: {e}")
         return []
+
 
 def _to_float_safe(val, default=0.0):
     """Konversi nilai ke float, aman dari string kosong atau format aneh."""
@@ -118,12 +184,14 @@ def _to_float_safe(val, default=0.0):
     except:
         return default
 
+
 def _to_int_safe(val, default=0):
     """Konversi nilai ke integer, aman dari string kosong atau format aneh."""
     try:
         return int(float(str(val).strip())) if str(val).strip() != "" else default
     except:
         return default
+
 
 def normalize_row(row: dict) -> dict:
     """
@@ -134,7 +202,6 @@ def normalize_row(row: dict) -> dict:
     r = dict(row)
 
     # Hitung angsuran yang sudah dibayar dari kolom 'ANG...'.
-    # Anggap setiap kolom 'ANG...' yang tidak kosong/nol adalah satu kali bayar.
     angsuran_terbayar = 0
     for k, v in r.items():
         if str(k).upper().startswith("ANG") and v not in (None, "", b"", 0):
@@ -145,10 +212,9 @@ def normalize_row(row: dict) -> dict:
                 pass
             angsuran_terbayar += 1
 
-    # Normalisasi field dasar (teks)
+    # Normalisasi field teks
     r["NOPEG"]  = str(r.get("NOPEG") or "").strip()
     r["NAMA"]   = str(r.get("NAMA") or "").strip()
-    # Gunakan fungsi cleaning untuk divisi
     r["BAGIAN"] = clean_division_name(str(r.get("BAGIAN") or ""))
 
     # Normalisasi field angka
@@ -173,6 +239,7 @@ def normalize_row(row: dict) -> dict:
 
     return r
 
+
 def load_data():
     """
     Core function:
@@ -195,16 +262,19 @@ def load_data():
             raw_data = read_dbf_file(path) if path.lower().endswith(".dbf") else read_excel_file(path)
             for rec in raw_data:
                 proc = normalize_row(rec)
-                proc["SRC_FILE"] = os.path.basename(path) # Simpan nama file asal
+                filename = os.path.basename(path)
+                proc["SRC_FILE"] = filename
+                # NEW: klasifikasikan jenis dari nama file (cheap & reliable untuk operasional)
+                proc["JENIS"] = classify_loan_type(filename)
+
                 nopeg = proc.get("NOPEG")
                 if not nopeg:
                     continue
                 all_loans_by_nopeg.setdefault(nopeg, []).append(proc)
 
-        # Step 4: Agregasi data
+        # Step 4: Agregasi data per NOPEG
         final_data = []
         for nopeg, loans in all_loans_by_nopeg.items():
-            # Jumlahkan semua metrik pinjaman untuk satu orang
             summary = {
                 "JML": sum(l["JML"] for l in loans),
                 "LAMA": sum(l["LAMA"] for l in loans),
@@ -215,7 +285,7 @@ def load_data():
                 "TOTAL_TAGIHAN": sum(l.get("TOTAL_TAGIHAN", 0) for l in loans),
             }
 
-            # Tentukan status agregat: jika ada satu saja pinjaman 'Berjalan', statusnya 'Berjalan'.
+            # Status agregat
             statuses = {l["STATUS"] for l in loans}
             if "Berjalan" in statuses:
                 summary["STATUS"] = "Berjalan"
@@ -226,11 +296,12 @@ def load_data():
 
             final_data.append({
                 "NOPEG": nopeg,
-                "NAMA": loans[-1]["NAMA"], # Ambil nama & bagian dari data terakhir
+                "NAMA": loans[-1]["NAMA"],
                 "BAGIAN": loans[-1]["BAGIAN"],
-                "SUMMARY": summary,       # Hasil agregasi
-                "DETAILS": loans,         # List pinjaman individual
+                "SUMMARY": summary,
+                "DETAILS": loans,
                 "COUNT_PINJAMAN": len(loans),
+                "JENIS_SET": sorted({l.get("JENIS", "Lainnya") for l in loans}),
             })
 
         return final_data
@@ -245,18 +316,18 @@ def load_data():
 
 @app.route("/", methods=["GET"])
 def index():
-    """Route untuk halaman utama (tabel data karyawan)."""
+    """Halaman utama (tabel data karyawan)."""
     try:
         all_data = load_data()
 
-        # Ambil parameter filter dari URL
+        # Params
         q = request.args.get("search", "").strip().lower()
         bagian_filter = request.args.get("bagian", "").strip()
         status_filter = request.args.get("status", "").strip()
+        jenis_filter = request.args.get("jenis", "").strip()  # NEW: filter jenis
         page = int(request.args.get("page", 1))
         per_page = 20
 
-        # Apply filter
         filtered = all_data
         if q:
             filtered = [r for r in filtered if q in (r.get("NAMA") or "").lower() or q in (r.get("NOPEG") or "").lower()]
@@ -264,32 +335,43 @@ def index():
             filtered = [r for r in filtered if (r.get("BAGIAN") or "").lower() == bagian_filter.lower()]
         if status_filter:
             filtered = [r for r in filtered if (r.get("SUMMARY", {}).get("STATUS") or "").lower() == status_filter.lower()]
+        if jenis_filter:
+            # filter: hanya yg punya DETAIL dengan jenis tsb
+            filtered = [r for r in filtered if any(d.get("JENIS") == jenis_filter for d in r.get("DETAILS", []))]
 
-        # Paginasi
         total_data = len(filtered)
         total_pages = (total_data + per_page - 1) // per_page
         start = (page - 1) * per_page
         end = start + per_page
         paginated_data = filtered[start:end]
 
-        # Siapkan list divisi untuk dropdown filter (setelah di-clean)
         bagian_list = sorted({r.get("BAGIAN") for r in all_data if r.get("BAGIAN")})
+        jenis_list = sorted({d.get("JENIS") for r in all_data for d in r.get("DETAILS", []) if d.get("JENIS")})
 
         return render_template(
-            "index.html", data=paginated_data, bagian_list=bagian_list,
-            search=q, bagian_selected=bagian_filter, status_selected=status_filter,
-            page=page, total_pages=total_pages, title="Data Koperasi Karyawan",
-            column_headers=COLUMN_MAPPING, total_filtered=total_data
+            "index.html",
+            data=paginated_data,
+            bagian_list=bagian_list,
+            jenis_list=jenis_list,
+            search=q,
+            bagian_selected=bagian_filter,
+            status_selected=status_filter,
+            jenis_selected=jenis_filter,
+            page=page,
+            total_pages=total_pages,
+            title="Data Koperasi Karyawan",
+            column_headers=COLUMN_MAPPING,
+            total_filtered=total_data
         )
     except Exception as e:
         logger.error(f"Error di halaman utama: {str(e)}")
         flash("Terjadi kesalahan fatal saat memuat data. Silakan cek log.", "danger")
-        return render_template("index.html", data=[], bagian_list=[], page=1, total_pages=1)
+        return render_template("index.html", data=[], bagian_list=[], jenis_list=[], page=1, total_pages=1)
 
 
 @app.route("/reset_data", methods=["POST"])
 def reset_data():
-    """Endpoint untuk hapus semua file data di folder /uploads."""
+    """Hapus semua file data di folder /uploads."""
     try:
         files = glob.glob(os.path.join(UPLOAD_FOLDER, "*"))
         count = 0
@@ -304,7 +386,7 @@ def reset_data():
 
 @app.route("/import", methods=["POST"])
 def import_file():
-    """Endpoint untuk handle upload file data."""
+    """Handle upload file data (multi-file ok)."""
     if "file" not in request.files:
         flash("Tidak ada file yang dipilih untuk di-upload.", "danger")
         return redirect(url_for("index"))
@@ -321,7 +403,7 @@ def import_file():
             if not allowed_file(filename):
                 errors.append(f"{filename}: Format file tidak didukung (hanya .dbf atau .xlsx).")
                 continue
-            
+
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             if os.path.exists(filepath):
                 base, ext = os.path.splitext(filename)
@@ -342,7 +424,8 @@ def import_file():
 
     return redirect(url_for("index"))
 
-# --- Export Routes ---
+# ----------------- EXPORT LIST (CSV / EXCEL / PDF) -----------------
+
 @app.route("/export/csv")
 def export_csv():
     """Export data ke format CSV."""
@@ -366,11 +449,14 @@ def export_csv():
         filename = "export_data_koperasi.csv"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         df.to_csv(filepath, index=False, encoding="utf-8-sig")
+
+        flash("CSV siap diunduh.", "success")  # restore: pop-up manual balik lagi
         return send_file(filepath, as_attachment=True, download_name=filename)
     except Exception as e:
         logger.error(f"Error saat ekspor CSV: {str(e)}")
         flash("Terjadi kesalahan saat mengekspor data ke CSV.", "danger")
         return redirect(url_for("index"))
+
 
 @app.route("/export/excel")
 def export_excel():
@@ -389,6 +475,8 @@ def export_excel():
         filename = "export_data_koperasi.xlsx"
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         df.to_excel(filepath, index=False)
+
+        flash("Excel siap diunduh.", "success")  # restore flash
         return send_file(filepath, as_attachment=True, download_name=filename)
     except Exception as e:
         logger.error(f"Error saat ekspor Excel: {str(e)}")
@@ -412,7 +500,7 @@ def export_pdf():
         style_title = ParagraphStyle(name='Title', parent=styles['h1'], alignment=TA_CENTER, spaceAfter=12, fontSize=14)
         style_body_left = ParagraphStyle(name='BodyLeft', parent=styles['Normal'], alignment=TA_LEFT, fontSize=7, leading=9)
         style_body_center = ParagraphStyle(name='BodyCenter', parent=styles['Normal'], alignment=TA_CENTER, fontSize=7, leading=9)
-        style_header = ParagraphStyle(name='Header', parent=styles['Normal'], alignment=TA_CENTER, fontName='Helvetica-Bold', fontSize=8, textColor=colors.whitesmoke)
+        style_header = ParagraphStyle(name='Header', parent=styles['Normal'], alignment=TA_CENTER, fontName='Helvetica-Bold', fontSize=8, textColor=colors.black)
 
         elements = [Paragraph("Data Koperasi Karyawan", style_title)]
         header = [Paragraph(text, style_header) for text in COLUMN_MAPPING.values()]
@@ -439,8 +527,8 @@ def export_pdf():
 
         table = Table(table_data, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#343a40")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef1f4")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
             ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
@@ -448,6 +536,8 @@ def export_pdf():
 
         elements.append(table)
         doc.build(elements)
+
+        flash("PDF siap diunduh.", "success")  # restore flash
         return send_file(filepath, as_attachment=True, download_name=filename)
 
     except Exception as e:
@@ -455,9 +545,224 @@ def export_pdf():
         flash("Terjadi kesalahan saat mengekspor data ke PDF.", "danger")
         return redirect(url_for("index"))
 
+
+# ----------------- EXPORT BON (PER ORANG & MASSAL) -----------------
+
+# === BON PDF CONSTANTS (biar konsisten di semua tempat) =======================
+# NOTE (senior): single source of truth → kalau mau ubah margin, cukup di sini.
+BON_PAGE_SIZE = A5
+BON_MARGIN_LEFT = 1*cm
+BON_MARGIN_RIGHT = 1*cm
+BON_MARGIN_TOP = .8*cm
+BON_MARGIN_BOTTOM = .8*cm
+# ==============================================================================
+
+# NEW: kalkulasi tinggi halaman dinamis supaya “no blank paper”
+def _compute_bon_pagesize(num_rows: int) -> tuple:
+    """
+    Hitung pagesize (width, height) yang pas dengan konten.
+    Estimasi cukup akurat untuk font 8pt + padding kecil.
+    """
+    width = BON_PAGE_SIZE[0]  # lebar tetap (A5 portrait)
+    # blok-blok tinggi (point)
+    banner_h = 24
+    spacer = 6
+    id_row_h = 14  # 2 baris identitas
+    id_block = id_row_h * 2
+    header_row_h = 16
+    row_h = 16
+    table_h = header_row_h + max(num_rows, 1) * row_h
+    footer_h = 28  # 2 paragraf kecil
+
+    content = banner_h + spacer + id_block + spacer + table_h + spacer + footer_h
+    height = content + BON_MARGIN_TOP + BON_MARGIN_BOTTOM
+
+    # jangan terlalu pendek; 220pt aman buat PDF viewer
+    return (width, max(height, 220))
+
+
+def build_bon_story(person: dict, jenis_filter: str | None = None, page_width: float | None = None):
+    """Bangun elemen ReportLab untuk BON (dipakai per orang & massal).
+       Catatan dev: jenis_filter → kalau ada, hanya render baris dengan jenis tsb."""
+    styles = getSampleStyleSheet()
+    title = ParagraphStyle(name='Title', parent=styles['h2'], alignment=TA_CENTER, fontSize=12, spaceAfter=6)
+    small = ParagraphStyle(name='Small', parent=styles['Normal'], fontSize=8, leading=10)
+    small_b = ParagraphStyle(name='SmallB', parent=styles['Normal'], fontSize=8, leading=10)
+    small_b.fontName = 'Helvetica-Bold'
+
+    now = datetime.now().strftime('%d-%m-%Y')
+
+    # === WIDTH CALC: pakai lebar halaman yang dipakai doc ===
+    page_w = page_width or BON_PAGE_SIZE[0]
+    available_width = page_w - BON_MARGIN_LEFT - BON_MARGIN_RIGHT
+
+    story = []
+    # Banner abu elegan + teks gelap
+    banner = Table(
+        [[Paragraph("BON CICILAN", ParagraphStyle(name='Banner', alignment=TA_LEFT, textColor=colors.black, fontSize=11, fontName='Helvetica-Bold'))]],
+        colWidths=[available_width]
+    )
+    banner.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#eef1f4")),
+        ("LEFTPADDING", (0,0), (-1,-1), 8),
+        ("RIGHTPADDING", (0,0), (-1,-1), 8),
+        ("TOPPADDING", (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ("ALIGN", (0,0), (-1,-1), "LEFT"),
+    ]))
+    story.append(banner)
+    story.append(Spacer(0, 6))
+
+    # identitas
+    id_weights = [2.0, 6.2, 1.8, 2.8]  # Nama | value | Nomor | value
+    id_total = sum(id_weights)
+    id_cols = [available_width * (w / id_total) for w in id_weights]
+
+    header_data = [
+        [Paragraph("Nama", small_b), Paragraph(person.get("NAMA", "-"), small),
+         Paragraph("Nomor", small_b), Paragraph(person.get("NOPEG", "-"), small)],
+        [Paragraph("Bagian", small_b), Paragraph(person.get("BAGIAN", "-"), small),
+         Paragraph("Dicetak", small_b), Paragraph(now, small)],
+    ]
+    t1 = Table(header_data, colWidths=id_cols)
+    t1.setStyle(TableStyle([
+        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+    ]))
+    story.append(t1)
+    story.append(Spacer(0, 4))
+
+    # tabel detail
+    detail_weights = [4.5, 1.8, 1.3, 2.6, 2.6]
+    dw_total = sum(detail_weights)
+    detail_cols = [available_width * (w / dw_total) for w in detail_weights]
+
+    rows = [[Paragraph("Jenis", small_b), Paragraph("Cicilan ke", small_b),
+             Paragraph("Tenor", small_b), Paragraph("Cicilan", small_b), Paragraph("Sisa", small_b)]]
+
+    details = person.get("DETAILS", [])
+    if jenis_filter:
+        details = [d for d in details if d.get("JENIS") == jenis_filter]
+
+    for d in details:
+        rows.append([
+            Paragraph(d.get("JENIS", "-"), small),
+            Paragraph(str(d.get("ANGSURAN_KE", 0)), small),
+            Paragraph(str(d.get("LAMA", 0)), small),
+            Paragraph(f"Rp {int(float(d.get('CICIL',0))):,}".replace(',', '.'), small),
+            Paragraph(f"Rp {int(float(d.get('SISA_CICILAN',0))):,}".replace(',', '.'), small),
+        ])
+
+    t2 = Table(rows, colWidths=detail_cols, repeatRows=1)
+    t2.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.3, colors.grey),
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor('#f3f4f6')),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.black),
+        ("ALIGN", (1,1), (-1,-1), "RIGHT"),
+        ("ALIGN", (0,0), (0,-1), "LEFT"),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("LEFTPADDING", (0,0), (-1,-1), 4),
+        ("RIGHTPADDING", (0,0), (-1,-1), 4),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+    ]))
+    story.append(t2)
+
+    story.append(Spacer(0, 8))
+    story.append(Paragraph("Unit Simpan Pinjam KOPKAROPI", small_b))
+    story.append(Paragraph("Bon ini dicetak dari sistem. Harap simpan sebagai arsip.", small))
+    return story, len(details)
+
+
+def render_bon_pdf_to_bytes(person: dict, jenis_filter: str | None = None) -> bytes:
+    """Render bon ke bytes (dipakai untuk ZIP massal)."""
+    tmp_story, nrows = build_bon_story(person, jenis_filter=jenis_filter, page_width=BON_PAGE_SIZE[0])
+    page_size = _compute_bon_pagesize(nrows)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=page_size,
+        rightMargin=BON_MARGIN_RIGHT, leftMargin=BON_MARGIN_LEFT,
+        topMargin=BON_MARGIN_TOP, bottomMargin=BON_MARGIN_BOTTOM
+    )
+    story, _ = build_bon_story(person, jenis_filter=jenis_filter, page_width=page_size[0])
+    doc.build(story)
+    return buf.getvalue()
+
+
+@app.route("/export/bon/<nopeg>")
+def export_bon(nopeg):
+    """Cetak bon cicilan per karyawan: halaman otomatis setinggi konten (no blank area)."""
+    try:
+        jenis_filter = request.args.get("jenis", "").strip() or None
+        data = load_data()
+        person = next((x for x in data if x.get("NOPEG") == nopeg), None)
+        if not person:
+            flash("Data karyawan tidak ditemukan.", "warning")
+            return redirect(url_for("index"))
+
+        filename = f"bon_{nopeg}.pdf"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+        tmp_story, nrows = build_bon_story(person, jenis_filter=jenis_filter, page_width=BON_PAGE_SIZE[0])
+        page_size = _compute_bon_pagesize(nrows)
+
+        doc = SimpleDocTemplate(
+            filepath, pagesize=page_size,
+            rightMargin=BON_MARGIN_RIGHT, leftMargin=BON_MARGIN_LEFT,
+            topMargin=BON_MARGIN_TOP, bottomMargin=BON_MARGIN_BOTTOM
+        )
+        story, _ = build_bon_story(person, jenis_filter=jenis_filter, page_width=page_size[0])
+        doc.build(story)
+
+        flash("BON siap diunduh.", "success")  # restore flash
+        return send_file(filepath, as_attachment=True, download_name=filename)
+    except Exception as e:
+        logger.error(f"Error saat ekspor bon: {str(e)}")
+        flash("Terjadi kesalahan saat mencetak bon.", "danger")
+        return redirect(url_for("index"))
+
+
+@app.route("/export/bon_bulk")
+def export_bon_bulk():
+    """Export BON massal menjadi ZIP. Ikut filter 'jenis' kalau ada (pagesize tiap file auto-fit)."""
+    try:
+        jenis_filter = request.args.get("jenis", "").strip() or None
+        all_data = load_data()
+
+        if jenis_filter:
+            all_data = [r for r in all_data if any(d.get("JENIS") == jenis_filter for d in r.get("DETAILS", []))]
+
+        if not all_data:
+            flash("Tidak ada data untuk diekspor.", "warning")
+            return redirect(url_for("index"))
+
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for person in all_data:
+                pdf_bytes = render_bon_pdf_to_bytes(person, jenis_filter=jenis_filter)
+                nopeg = person.get("NOPEG", "UNKNOWN")
+                nama = (person.get("NAMA", "NONAME") or "").replace(" ", "_")
+                sub = (jenis_filter or "ALL").replace(" ", "_")
+                arcname = f"{sub}/bon_{nopeg}_{nama}.pdf"
+                zf.writestr(arcname, pdf_bytes)
+
+        zip_buf.seek(0)
+        dl_name = f"bon_{(jenis_filter or 'all').replace(' ', '_').lower()}.zip"
+        flash("ZIP BON siap diunduh.", "success")  # restore flash
+        return send_file(zip_buf, as_attachment=True, download_name=dl_name, mimetype="application/zip")
+
+    except Exception as e:
+        logger.error(f"Error saat ekspor bon massal: {str(e)}")
+        flash("Terjadi kesalahan saat membuat ZIP Bon.", "danger")
+        return redirect(url_for("index"))
+
+
+# ----------------- DASHBOARD -----------------
+
 @app.route("/dashboard")
 def dashboard():
-    """Route untuk halaman dashboard ringkasan."""
+    """Halaman dashboard ringkasan."""
     try:
         all_data = load_data()
 
@@ -470,25 +775,29 @@ def dashboard():
                 bagian_pinjaman={}, bagian_sisa={}, bagian_dibayar={}
             )
 
-        # 1. Agregasi untuk KPI & Chart Status
-        status_count = {"Lunas": 0, "Berjalan": 0, "Belum Bayar": 0}
-        status_amount = {"Lunas": 0, "Berjalan": 0, "Belum Bayar": 0}
-        for r in all_data:
-            status = r["SUMMARY"]["STATUS"]
-            if status in status_count:
-                status_count[status] += 1
-            if status != "Lunas":
-                status_amount[status] += r["SUMMARY"]["SISA_CICILAN"]
-
+        # 1) KPI & Status pinjaman
         total_karyawan = len(all_data)
+        total_pinjaman_pokok = sum(r["SUMMARY"].get("JML", 0) for r in all_data)
+        total_tagihan_semua = sum(r["SUMMARY"].get("TOTAL_TAGIHAN", 0) for r in all_data)
+        total_sisa_semua = sum(r["SUMMARY"].get("SISA_CICILAN", 0) for r in all_data)
+
+        status_labels = ["Lunas", "Berjalan", "Belum Bayar"]
+        status_count = {k: 0 for k in status_labels}
+        status_amount = {k: 0 for k in status_labels}
+        for r in all_data:
+            st = r["SUMMARY"].get("STATUS", "Berjalan")
+            status_count[st] = status_count.get(st, 0) + 1
+            if st != "Lunas":
+                status_amount[st] = status_amount.get(st, 0) + r["SUMMARY"].get("SISA_CICILAN", 0)
+
         status_details = {
-            "labels": list(status_count.keys()),
-            "counts": list(status_count.values()),
-            "amounts": list(status_amount.values()),
-            "percentages": [round((count / total_karyawan) * 100, 1) if total_karyawan > 0 else 0 for count in status_count.values()]
+            "labels": status_labels,
+            "counts": [status_count.get(k, 0) for k in status_labels],
+            "amounts": [status_amount.get(k, 0) for k in status_labels],
+            "percentages": [round((status_count.get(k, 0) / total_karyawan) * 100, 1) if total_karyawan else 0 for k in status_labels]
         }
 
-        # 2. Agregasi untuk Chart Divisi
+        # 2) Divisi: total kontrak vs sisa
         bagian_count_raw, bagian_total_raw, bagian_sisa_raw = {}, {}, {}
         for r in all_data:
             bagian = r.get("BAGIAN") or "Tidak Ada Divisi"
@@ -497,35 +806,30 @@ def dashboard():
             sisa = r["SUMMARY"].get("SISA_CICILAN", 0)
             bagian_total_raw[bagian] = bagian_total_raw.get(bagian, 0) + total_kontrak
             bagian_sisa_raw[bagian] = bagian_sisa_raw.get(bagian, 0) + sisa
-        
+
         bagian_dibayar_raw = {k: max(bagian_total_raw.get(k, 0) - bagian_sisa_raw.get(k, 0), 0) for k in bagian_total_raw.keys()}
 
+        # ambil 10 divisi dgn total kontrak terbesar
         sorted_bagian_total = sorted(bagian_total_raw.items(), key=lambda x: x[1], reverse=True)[:10]
         top_10_bagian_pinjaman = {k: v for k, v in sorted_bagian_total}
         top_10_bagian_sisa = {k: bagian_sisa_raw.get(k, 0) for k, _ in sorted_bagian_total}
         top_10_bagian_dibayar = {k: bagian_dibayar_raw.get(k, 0) for k, _ in sorted_bagian_total}
 
+        # 3) Hitung count per divisi untuk tabel kecil di dashboard (opsional)
         sorted_bagian_count = sorted(bagian_count_raw.items(), key=lambda x: x[1], reverse=True)[:10]
         top_10_bagian_count = {k: v for k, v in sorted_bagian_count}
 
-        # 3. Kalkulasi KPI utama
-        total_pinjaman_pokok = sum(r["SUMMARY"].get("JML", 0) for r in all_data)
-        total_tagihan_semua = sum(r["SUMMARY"].get("TOTAL_TAGIHAN", 0) for r in all_data)
-        total_sisa_semua = sum(r["SUMMARY"].get("SISA_CICILAN", 0) for r in all_data)
-
-
-        # 4. Data untuk top 10 peminjam terbesar
+        # 4) Top 10 peminjam terbesar (berdasarkan TOTAL_TAGIHAN)
         sorted_by_kontrak = sorted(all_data, key=lambda x: x["SUMMARY"].get("TOTAL_TAGIHAN", 0), reverse=True)
         top_borrowers = []
         for r in sorted_by_kontrak[:10]:
-            # FIX: Gunakan .get() untuk akses aman, mencegah error jika key tidak ada
             total_kontrak = r["SUMMARY"].get("TOTAL_TAGIHAN", 0)
             sisa = r["SUMMARY"].get("SISA_CICILAN", 0)
             dibayar = max(total_kontrak - sisa, 0)
             top_borrowers.append({
-                "nama": r.get("NAMA", "N/A"), 
-                "jumlah": total_kontrak, 
-                "sisa": sisa, 
+                "nama": r.get("NAMA", "N/A"),
+                "jumlah": total_kontrak,
+                "sisa": sisa,
                 "dibayar": dibayar
             })
 

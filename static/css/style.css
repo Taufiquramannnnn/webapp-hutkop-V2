@@ -1,4 +1,4 @@
-/*
+/* 
  * style.css
  * ---------
  * Penjelasan struktur:
@@ -306,3 +306,117 @@ body.bg-soft {
   display: none;
 }
 
+/* Compact controls for filter bar (non-intrusive) */
+.filter-sm { font-size: .95rem; }
+.filter-sm ~ .choices__inner { padding-top: 0 !important; padding-bottom: 0 !important; }
+
+/* ===========================
+   PATCH: DETAIL GRID COMPACT
+   ---------------------------
+   Fokus: bikin kolom File lebar,
+   perkecil Tenor / Pembayaran / Sisa Tenor biar nggak boros.
+   Tidak mengubah style global lain.
+   =========================== */
+
+/* NOTE:
+ * Pakai class tambahan "detail-grid-compact" di elemen detail-card
+ * supaya patch ini hanya aktif di tabel detail (aman buat komponen lain).
+ */
+.detail-card.detail-grid-compact {
+  display: grid !important;
+  /* Desktop: File dibuat lebih lega; 3 kolom angka diperkecil */
+  grid-template-columns:
+    minmax(180px, 1.8rem)  /* File */
+    1.15fr                /* Pinjaman Pokok */
+    1.15fr                /* Pokok + Bunga */
+    1.00fr                /* Cicilan */
+    0.70fr                /* Tenor (compact) */
+    0.70fr                /* Pembayaran (compact) */
+    0.70fr                /* Sisa Tenor (compact) */
+    1.05fr                /* Terbayar */
+    1.15fr;               /* Sisa Pinjaman */
+  gap: 5px;
+  align-items: center;
+}
+
+/* Nama file: 1 baris di desktop + ellipsis.
+   Tambah 'line-clamp' standar biar linter diem. */
+.file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1; /* standard */
+}
+
+/* Tablet: izinkan max 2 baris untuk nama file; grid sedikit diringankan */
+@media (max-width: 1200px) {
+  .detail-card.detail-grid-compact {
+    grid-template-columns:
+      minmax(260px, 2.2fr) 1.1fr 1.1fr .95fr .55fr .60fr .60fr 1.0fr 1.1fr;
+  }
+  .file-name {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
+}
+
+/* Mobile: fallback satu kolom (baca nyaman) */
+@media (max-width: 768px) {
+  .detail-card.detail-grid-compact { grid-template-columns: 1fr; }
+  .detail-card.detail-grid-compact > div {
+    border-top: 1px dashed #e6e6e6;
+    padding-top: .45rem;
+    margin-top: .45rem;
+  }
+  .detail-card.detail-grid-compact > div:first-child {
+    border-top: 0; padding-top: 0; margin-top: 0;
+  }
+}
+/* === END PATCH === */
+
+
+/* ===============================
+   NEW: Detail header (judul seksi)
+   --------------------------------
+   Tujuan: nutup ruang kosong di atas
+   grid detail + konsisten sama tema.
+   =============================== */
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  background: #eef8f1;
+  border: 1px solid #e6f2ea;
+  border-radius: 12px;
+  padding: .6rem .9rem;
+}
+.detail-header .detail-title {
+  font-weight: 700;
+  color: #157347; /* hijau tua yg nyaman */
+  letter-spacing: .1px;
+}
+
+
+/* ==============================================
+   PATCH: vertical align content di grid detail
+   ----------------------------------------------
+   Semua kolom selain "File" rata tengah vertikal.
+   Kolom pertama dibiarkan top untuk nama file+badge.
+   (Mobile dibalikin ke top agar konten per blok kebaca enak.)
+   ============================================== */
+.detail-card > div{
+  display:flex;             /* bikin cell bisa center vertikal */
+  flex-direction:column;
+  justify-content:center;   /* center secara vertikal */
+  height:100%;
+}
+.detail-card > div:first-child{
+  justify-content:flex-start; /* file: tetap top, natural */
+}
+@media (max-width:768px){
+  .detail-card > div{ justify-content:flex-start; } /* mobile: top */
+}
