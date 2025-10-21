@@ -281,12 +281,15 @@
           <div class="opsi-card h-100">
             <div class="opsi-icon text-danger"><i class="bi bi-exclamation-octagon"></i></div>
             <div class="opsi-title">Reset Data</div>
-            <form class="d-grid" action="{{ url_for('reset_data') }}" method="POST"
-                  onsubmit="return confirm('Anda yakin ingin menghapus semua data yang sudah diunggah? Tindakan ini tidak bisa dibatalkan.');">
-              <button class="btn btn-outline-danger btn-pill">
+
+            <!-- FORM RESET (tidak pakai confirm() inline) -->
+            <form id="resetForm" class="d-grid" action="{{ url_for('reset_data') }}" method="POST">
+              <!-- tombol bukan submit, kita tampilkan modal dulu -->
+              <button type="button" class="btn btn-outline-danger btn-pill needs-confirm-reset">
                 <i class="bi bi-trash3 me-1"></i> Reset Semua Data
               </button>
             </form>
+
             <div class="opsi-sub mt-2">Hapus semua file data di server</div>
           </div>
         </div>
@@ -312,6 +315,31 @@
           <a id="confirmDownloadBtn" href="#" class="btn btn-success">
             <i class="bi bi-check2-circle me-1"></i> Unduh
           </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Konfirmasi Reset -->
+  <div class="modal fade" id="confirmResetModal" tabindex="-1" aria-labelledby="confirmResetLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title" id="confirmResetLabel">
+            <i class="bi bi-exclamation-triangle me-2 text-danger"></i>Konfirmasi Reset Data
+          </h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Anda yakin ingin menghapus semua data yang sudah diunggah?<br>
+          <span class="text-danger fw-semibold">Tindakan ini tidak bisa dibatalkan.</span>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+          <!-- tombol ini yang submit form reset -->
+          <button id="confirmResetBtn" type="button" class="btn btn-danger">
+            <i class="bi bi-check2-circle me-1"></i> Ya, Reset Semua
+          </button>
         </div>
       </div>
     </div>
@@ -385,26 +413,67 @@
         });
       }, 4000);
 
-      // ====== POPUP KONFIRMASI DOWNLOAD (manual) ======
-      const modalEl = document.getElementById('confirmDownloadModal');
-      const modal = new bootstrap.Modal(modalEl);
+      // ====== KONFIRMASI & DOWNLOAD ======
+      const downloadModalEl = document.getElementById('confirmDownloadModal');
+      const downloadModal = new bootstrap.Modal(downloadModalEl);
       const labelEl = document.getElementById('fileLabel');
-      const btnEl = document.getElementById('confirmDownloadBtn');
+      const btnDownload = document.getElementById('confirmDownloadBtn');
+      const flashWrap = document.querySelector('.flash-messages');
+
+      function pushFlash(message, type = 'success') { // feedback instan
+        const div = document.createElement('div');
+        div.className = `alert alert-${type} alert-dismissible fade show`;
+        div.setAttribute('role','alert');
+        div.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+        flashWrap.prepend(div);
+        setTimeout(() => bootstrap.Alert.getOrCreateInstance(div).close(), 4000);
+      }
+
+      function triggerDownload(url) { // download tanpa pindah halaman
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        setTimeout(() => iframe.remove(), 10000);
+      }
 
       document.body.addEventListener('click', function(e){
         const a = e.target.closest('a.needs-confirm-download');
         if (!a) return;
-
-        // stop navigasi langsung
         e.preventDefault();
-
-        // set label dan target unduh
         labelEl.textContent = a.getAttribute('data-filelabel') || 'File';
-        btnEl.setAttribute('href', a.getAttribute('href'));
-
-        // tampilkan modal
-        modal.show();
+        btnDownload.setAttribute('href', a.getAttribute('href'));
+        downloadModal.show();
       });
+
+      btnDownload.addEventListener('click', function(e){
+        e.preventDefault();
+        const url = btnDownload.getAttribute('href');
+        const label = labelEl.textContent || 'File';
+        downloadModal.hide();
+        pushFlash(`${label} siap diunduh.`, 'success');
+        triggerDownload(url);
+      });
+
+      // ====== KONFIRMASI RESET  ======
+      const resetModalEl = document.getElementById('confirmResetModal');
+      const resetModal = new bootstrap.Modal(resetModalEl);
+      const resetBtn = document.querySelector('.needs-confirm-reset');
+      const confirmResetBtn = document.getElementById('confirmResetBtn');
+      const resetForm = document.getElementById('resetForm');
+
+      if (resetBtn) {
+        resetBtn.addEventListener('click', function(){
+          resetModal.show();
+        });
+      }
+      if (confirmResetBtn) {
+        confirmResetBtn.addEventListener('click', function(){
+          // submit form setelah user konfirmasi
+          resetModal.hide();
+          resetForm.submit();
+        });
+      }
     });
   </script>
 </body>
