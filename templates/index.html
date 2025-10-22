@@ -3,149 +3,93 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title }}</title>
-
-  <!-- Framework & Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>{{ title }}</title> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-  <!-- Choices.js -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-  <!-- Custom Stylesheet -->
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 
-<body class="bg-soft">
-  <!-- FLASH / POP-UP -->
-  <div class="flash-messages">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category=='success' else ('warning' if category=='warning' else ('danger' if category=='danger' else 'info')) }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
+<body class="bg-soft"> <div class="flash-messages">
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if messages %}
+        {% for category, message in messages %} <div class="alert alert-{{ 'success' if category=='success' else ('warning' if category=='warning' else ('danger' if category=='danger' else 'info')) }} alert-dismissible fade show" role="alert">
+            {{ message }} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
   </div>
 
-  <!-- Navigasi Atas -->
-  <nav class="navbar navbar-expand-lg bg-white shadow-sm sticky-top">
-    <div class="container">
-      <a class="navbar-brand fw-bold text-success" href="{{ url_for('index') }}">
-        <i class="bi bi-journal-check me-2"></i> Hutang Koperasi
-      </a>
-      <div class="ms-auto">
-        <a class="btn btn-outline-success" href="{{ url_for('dashboard') }}">
-          <i class="bi bi-bar-chart-line me-1"></i> Dashboard
+  <nav class="navbar navbar-expand-lg bg-white shadow-sm sticky-top"> <div class="container">
+      <a class="navbar-brand fw-bold text-success" href="{{ url_for('index') }}"> <i class="bi bi-journal-check me-2"></i> Hutang Koperasi </a>
+      <div class="ms-auto"> <a class="btn btn-outline-success" href="{{ url_for('dashboard') }}"> <i class="bi bi-bar-chart-line me-1"></i> Dashboard
         </a>
       </div>
     </div>
   </nav>
 
-  <!-- Konten Utama -->
-  <div class="container py-4">
-    <!-- Header Halaman -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body d-flex align-items-center justify-content-between">
-        <div>
-          <h5 class="mb-1 fw-bold">Data Hutang Koperasi</h5>
-          <small class="text-muted">{{ total_filtered or 0 }} debitur terdaftar</small>
+  <div class="container py-4"> <div class="card border-0 shadow-sm mb-3"> <div class="card-body d-flex align-items-center justify-content-between"> <div>
+          <h5 class="mb-1 fw-bold">Data Hutang Koperasi</h5> <small class="text-muted">{{ total_filtered or 0 }} debitur terdaftar</small> </div>
         </div>
-      </div>
     </div>
 
-    <!-- Filter & Pencarian -->
-    <form class="card shadow-sm border-0 p-3 p-md-4 mb-3" action="{{ url_for('index') }}" method="GET">
-      <div class="row g-3 align-items-end">
-        <div class="col-md-3">
+    <form class="card shadow-sm border-0 p-3 p-md-4 mb-3" action="{{ url_for('index') }}" method="GET"> <div class="row g-3 align-items-end"> <div class="col-md-3">
           <label for="search" class="form-label fw-semibold">Cari Nama / No. Pegawai</label>
-          <input type="text" class="form-control filter-sm" id="search" name="search" placeholder="Ketik di sini..." value="{{ search }}">
-        </div>
+          <input type="text" class="form-control filter-sm" id="search" name="search" placeholder="Ketik di sini..." value="{{ search }}"> </div>
         <div class="col-md-3">
           <label for="bagian" class="form-label fw-semibold">Divisi</label>
-          <select id="bagian-filter" name="bagian" class="filter-sm">
-            <option value="">Semua Divisi</option>
-            {% for bagian in bagian_list %}
-              <option value="{{ bagian }}" {% if bagian == bagian_selected %}selected{% endif %}>{{ bagian }}</option>
-            {% endfor %}
+          <select id="bagian-filter" name="bagian" class="filter-sm"> <option value="">Semua Divisi</option> {% for bagian in bagian_list %} <option value="{{ bagian }}" {% if bagian == bagian_selected %}selected{% endif %}>{{ bagian }}</option> {% endfor %}
           </select>
         </div>
-
         <div class="col-md-3">
           <label for="jenis" class="form-label fw-semibold">Jenis Pinjaman</label>
-          <select id="jenis-filter" name="jenis" class="filter-sm">
-            <option value="">Semua Jenis</option>
-            {% for j in jenis_list %}
-              <option value="{{ j }}" {% if j == jenis_selected %}selected{% endif %}>{{ j }}</option>
-            {% endfor %}
+          <select id="jenis-filter" name="jenis" class="filter-sm"> <option value="">Semua Jenis</option> {% for j in jenis_list %} <option value="{{ j }}" {% if j == jenis_selected %}selected{% endif %}>{{ j }}</option> {% endfor %}
           </select>
         </div>
-
         <div class="col-md-2">
           <label for="status" class="form-label fw-semibold">Status Pinjaman</label>
-          <select id="status-filter" name="status" class="filter-sm">
-            <option value="">Semua Status</option>
-            <option value="Berjalan" {% if status_selected == "Berjalan" %}selected{% endif %}>Berjalan</option>
+          <select id="status-filter" name="status" class="filter-sm"> <option value="">Semua Status</option> <option value="Berjalan" {% if status_selected == "Berjalan" %}selected{% endif %}>Berjalan</option>
             <option value="Lunas" {% if status_selected == "Lunas" %}selected{% endif %}>Lunas</option>
             <option value="Belum Bayar" {% if status_selected == "Belum Bayar" %}selected{% endif %}>Belum Bayar</option>
           </select>
         </div>
         <div class="col-md-1 d-flex">
-          <button type="submit" class="btn btn-success w-100 me-2" title="Terapkan filter">
-            <i class="bi bi-funnel-fill"></i>
+          <button type="submit" class="btn btn-success w-100 me-2" title="Terapkan filter"> <i class="bi bi-funnel-fill"></i>
           </button>
-          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary w-100" title="Reset semua filter">
-            <i class="bi bi-arrow-counterclockwise"></i>
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary w-100" title="Reset semua filter"> <i class="bi bi-arrow-counterclockwise"></i>
           </a>
         </div>
       </div>
     </form>
 
-    <!-- Tabel Utama -->
-    <div class="table-responsive shadow-sm">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-success">
-          <tr>
-            <th style="width:30px;"><i class="bi bi-chevron-down"></i></th>
-            <th>No. Pegawai</th>
-            <th>Nama Karyawan</th>
-            <th>Divisi</th>
-            <th>Pinjaman</th>
-            <th>Total Pinjaman</th>
-            <th>Total + Bunga</th>
-            <th>Total Tenor</th>
-            <th>Pembayaran</th>
-            <th>Sisa Tenor</th>
-            <th>Sisa Pinjaman</th>
-            <th>Status</th>
+    <div class="table-responsive shadow-sm"> <table class="table table-hover align-middle mb-0"> <thead class="table-success"> <tr>
+            <th style="width:30px;"><i class="bi bi-chevron-down"></i></th> <th>{{ column_headers.get('NOPEG','No. Pegawai') }}</th>
+            <th>{{ column_headers.get('NAMA','Nama Karyawan') }}</th>
+            <th>{{ column_headers.get('BAGIAN','Divisi') }}</th>
+            <th>Pinjaman</th> <th>{{ column_headers.get('JML','Total Pinjaman') }}</th>
+            <th>{{ column_headers.get('TOTAL_TAGIHAN','Total + Bunga') }}</th>
+            <th>{{ column_headers.get('LAMA','Total Tenor') }}</th>
+            <th>{{ column_headers.get('ANGSURAN_KE','Pembayaran') }}</th>
+            <th>{{ column_headers.get('SISA_ANGSURAN','Sisa Tenor') }}</th>
+            <th>{{ column_headers.get('SISA_CICILAN','Sisa Pinjaman') }}</th>
+            <th>{{ column_headers.get('STATUS','Status') }}</th>
           </tr>
         </thead>
         <tbody>
-          {% if data %}
-            {% for row in data %}
-              {% set sum = row.SUMMARY %}
-              <tr class="expandable-row" data-bs-toggle="collapse" data-bs-target="#details-{{ loop.index }}" aria-expanded="false" aria-controls="details-{{ loop.index }}">
+          {% if data %} {% for row in data %} {% set sum = row.SUMMARY %} <tr class="expandable-row" data-bs-toggle="collapse" data-bs-target="#details-{{ loop.index }}" aria-expanded="false" aria-controls="details-{{ loop.index }}">
                 <td class="text-center">
-                  <i class="bi bi-chevron-down text-success toggle-icon" data-target="details-{{ loop.index }}"></i>
-                </td>
+                  <i class="bi bi-chevron-down text-success toggle-icon" data-target="details-{{ loop.index }}"></i> </td>
                 <td>{{ row.get('NOPEG','-') }}</td>
                 <td>{{ row.get('NAMA','-') }}</td>
                 <td>{{ row.get('BAGIAN','-') }}</td>
                 <td class="text-center">
-                  <span class="badge bg-light text-success border border-success">{{ row.COUNT_PINJAMAN }} Pinjaman</span>
-                </td>
-                <td class="text-end">Rp {{ "{:,.0f}".format(sum.get('JML',0)).replace(',', '.') }}</td>
-                <td class="text-end">Rp {{ "{:,.0f}".format(sum.get('TOTAL_TAGIHAN',0)).replace(',', '.') }}</td>
+                  <span class="badge bg-light text-success border border-success">{{ row.COUNT_PINJAMAN }} Pinjaman</span> </td>
+                <td class="text-start">Rp {{ "{:,.0f}".format(sum.get('JML',0)).replace(',', '.') }}</td> <td class="text-start">Rp {{ "{:,.0f}".format(sum.get('TOTAL_TAGIHAN',0)).replace(',', '.') }}</td>
                 <td class="text-center">{{ sum.get('LAMA',0) }}</td>
                 <td class="text-center">{{ sum.get('ANGSURAN_KE',0) }}</td>
                 <td class="text-center">{{ sum.get('SISA_ANGSURAN',0) }}</td>
-                <td class="text-start fw-semibold text-danger">Rp {{ "{:,.0f}".format(sum.get('SISA_CICILAN',0)).replace(',', '.') }}</td>
-                <td class="text-center">
-                  {% set st = sum.get('STATUS','') %}
-                  <span class="badge-pill
+                <td class="text-start fw-semibold text-danger">Rp {{ "{:,.0f}".format(sum.get('SISA_CICILAN',0)).replace(',', '.') }}</td> <td class="text-center">
+                  {% set st = sum.get('STATUS','') %} <span class="badge-pill
                         {% if st == 'Lunas' %}badge-soft-success
                         {% elif st == 'Berjalan' %}badge-soft-primary
                         {% elif st == 'Belum Bayar' %}badge-soft-warning
@@ -155,25 +99,14 @@
                 </td>
               </tr>
 
-              <!-- Detail -->
-              <tr class="detail-row">
-                <td colspan="12">
-                  <div class="collapse" id="details-{{ loop.index }}">
-                    <div class="p-3">
-
-                      <!-- Header Detail -->
-                      <div class="detail-header mb-2 d-flex">
-                        <div class="d-flex align-items-center gap-2">
-                          <i class="bi bi-person-badge text-success"></i>
+              <tr class="detail-row"> <td colspan="12"> <div class="collapse" id="details-{{ loop.index }}"> <div class="p-3"> <div class="detail-header mb-2 d-flex align-items-center"> <div class="d-flex align-items-center gap-2"> <i class="bi bi-person-badge text-success"></i>
                           <span class="detail-title">
                             Detail Pinjaman <strong>{{ row.get('NAMA','-') }}</strong>
                           </span>
                           <span class="badge-pill badge-soft-primary ms-2">{{ row.COUNT_PINJAMAN }} file</span>
                         </div>
-                        <div class="ms-auto">
-                          <!-- bawa filter jenis kalau ada -->
-                          <a class="btn btn-outline-secondary btn-pill needs-confirm-download"
-                             href="{{ url_for('export_bon', nopeg=row.get('NOPEG'), jenis=jenis_selected) }}"
+                        <div class="ms-auto"> <a class="btn btn-outline-secondary btn-pill needs-confirm-download"
+                             href="{{ url_for('export_bon', nopeg=row.get('NOPEG'), jenis=jenis_selected, search=search, bagian=bagian_selected, status=status_selected) }}"
                              data-filelabel="PDF Bon - {{ row.get('NAMA','-') }}">
                             <i class="bi bi-filetype-pdf me-1"></i> PDF Bon
                           </a>
@@ -181,14 +114,12 @@
                       </div>
 
                       {% for d in row.DETAILS %}
-                        <div class="detail-card detail-grid-compact mb-2">
-                          <div>
+                        <div class="detail-card detail-grid-compact mb-2"> <div>
                             <div class="small">File</div>
                             <div class="fw-semibold file-name">
                               <i class="bi bi-file-earmark-text me-1"></i>{{ d.get('SRC_FILE','-') }}
                             </div>
-                            <div class="mt-1"><span class="badge-pill badge-soft-primary">{{ d.get('JENIS','Lainnya') }}</span></div>
-                          </div>
+                            <div class="mt-1"><span class="badge-pill badge-soft-primary">{{ d.get('JENIS','Lainnya') }}</span></div> </div>
                           <div><div class="text-center small">Pinjaman Pokok</div><div class="text-center fw-semibold">Rp {{ "{:,.0f}".format(d.get('JML',0)).replace(',', '.') }}</div></div>
                           <div><div class="text-center small">Pokok + Bunga</div><div class="text-center fw-semibold">Rp {{ "{:,.0f}".format(d.get('TOTAL_TAGIHAN',0)).replace(',', '.') }}</div></div>
                           <div><div class="text-center small">Cicilan</div><div class="text-center fw-semibold">Rp {{ "{:,.0f}".format(d.get('CICIL',0)).replace(',', '.') }}</div></div>
@@ -204,46 +135,33 @@
                 </td>
               </tr>
             {% endfor %}
-          {% else %}
-            <tr><td colspan="12" class="text-center text-muted py-5">Belum ada data.</td></tr>
+          {% else %} <tr><td colspan="12" class="text-center text-muted py-5">Belum ada data. Silakan upload file DBF/XLSX.</td></tr>
           {% endif %}
         </tbody>
       </table>
     </div>
 
-    <!-- Paginasi -->
-    {% if total_pages > 1 %}
-    <nav class="mt-4 d-flex justify-content-center">
-      <ul class="pagination shadow-sm">
-        <li class="page-item {% if page == 1 %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('index', page=page-1, search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}">&laquo;</a>
+    {% if total_pages > 1 %} <nav class="mt-4 d-flex justify-content-center"> <ul class="pagination shadow-sm"> <li class="page-item {% if page == 1 %}disabled{% endif %}"> <a class="page-link" href="{{ url_for('index', page=page-1, search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}">&laquo;</a>
         </li>
         {% for p in range(1, total_pages + 1) %}
-          <li class="page-item {% if p == page %}active{% endif %}">
-            <a class="page-link" href="{{ url_for('index', page=p, search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}">{{ p }}</a>
+          <li class="page-item {% if p == page %}active{% endif %}"> <a class="page-link" href="{{ url_for('index', page=p, search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}">{{ p }}</a>
           </li>
         {% endfor %}
-        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('index', page=page+1, search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}">&raquo;</a>
+        <li class="page-item {% if page == total_pages %}disabled{% endif %}"> <a class="page-link" href="{{ url_for('index', page=page+1, search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}">&raquo;</a>
         </li>
       </ul>
     </nav>
     {% endif %}
 
-    <!-- Opsi Upload, Export, Reset -->
-    <section class="mt-4 opsi-wrap">
-      <h5 class="text-center fw-bold mb-3">Opsi Data & Laporan</h5>
+    <section class="mt-4 opsi-wrap"> <h5 class="text-center fw-bold mb-3">Opsi Data & Laporan</h5>
       <div class="row g-3">
         <div class="col-lg-4">
-          <div class="opsi-card h-100">
-            <div class="opsi-icon text-success"><i class="bi bi-cloud-upload"></i></div>
+          <div class="opsi-card h-100"> <div class="opsi-icon text-success"><i class="bi bi-cloud-upload"></i></div>
             <div class="opsi-title">Upload Data</div>
             <form id="uploadForm" action="{{ url_for('import_file') }}" method="POST" enctype="multipart/form-data">
-              <label for="importFile" class="btn btn-ghost btn-pill w-100">
-                <i class="bi bi-hdd-stack me-2"></i> Pilih File DBF/XLSX
+              <label for="importFile" class="btn btn-ghost btn-pill w-100"> <i class="bi bi-hdd-stack me-2"></i> Pilih File DBF/XLSX
               </label>
-              <input type="file" id="importFile" name="file" class="d-none" multiple>
-            </form>
+              <input type="file" id="importFile" name="file" class="d-none" multiple> </form>
             <div class="opsi-sub mt-2">Bisa pilih banyak file sekaligus</div>
           </div>
         </div>
@@ -252,27 +170,22 @@
           <div class="opsi-card h-100">
             <div class="opsi-icon text-primary"><i class="bi bi-download"></i></div>
             <div class="opsi-title">Export Laporan</div>
-            <div class="d-flex export-bar flex-wrap">
-              <a href="{{ url_for('export_csv') }}"  class="btn btn-outline-success btn-pill needs-confirm-download" data-filelabel="CSV">
-                <i class="bi bi-filetype-csv me-1"></i> CSV
+            <div class="d-flex export-bar flex-wrap"> <a href="{{ url_for('export_csv', search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}"
+                 class="btn btn-outline-success btn-pill needs-confirm-download" data-filelabel="CSV"> <i class="bi bi-filetype-csv me-1"></i> CSV
               </a>
-              <a href="{{ url_for('export_excel') }}" class="btn btn-outline-primary btn-pill needs-confirm-download" data-filelabel="Excel">
-                <i class="bi bi-filetype-xlsx me-1"></i> Excel
+              <a href="{{ url_for('export_excel', search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}"
+                 class="btn btn-outline-primary btn-pill needs-confirm-download" data-filelabel="Excel"> <i class="bi bi-filetype-xlsx me-1"></i> Excel
               </a>
-              <a href="{{ url_for('export_pdf') }}"   class="btn btn-outline-danger btn-pill needs-confirm-download" data-filelabel="PDF">
-                <i class="bi bi-filetype-pdf me-1"></i> PDF
+              <a href="{{ url_for('export_pdf', search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}"
+                 class="btn btn-outline-danger btn-pill needs-confirm-download" data-filelabel="PDF List"> <i class="bi bi-filetype-pdf me-1"></i> PDF
               </a>
-
-              <!-- Export BON MASAL (ZIP per Jenis) -->
-              <a href="{{ url_for('export_bon_bulk', jenis=jenis_selected) }}"
+              <a href="{{ url_for('export_bon_bulk', search=search, bagian=bagian_selected, status=status_selected, jenis=jenis_selected) }}"
                  class="btn btn-outline-dark btn-pill needs-confirm-download"
-                 data-filelabel="ZIP Bon ({{ jenis_selected if jenis_selected else 'All' }})"
-                 title="Export semua BON (PDF) sesuai Jenis yang dipilih menjadi satu ZIP">
-                <i class="bi bi-archive me-1"></i> Bon ZIP (<em>All / filtered</em>.)
+                 data-filelabel="ZIP Bon" title="Export semua BON (PDF) sesuai filter aktif menjadi satu ZIP">
+                <i class="bi bi-archive me-1"></i> Bon ZIP
               </a>
-            </div>
-            <div class="opsi-sub mt-3">
-              CSV, Excel, PDF atau ZIP bon per <em>Jenis Pinjaman</em>.
+              </div>
+            <div class="opsi-sub mt-3"> CSV, Excel, PDF List, atau ZIP Bon berdasarkan filter aktif.
             </div>
           </div>
         </div>
@@ -281,46 +194,35 @@
           <div class="opsi-card h-100">
             <div class="opsi-icon text-danger"><i class="bi bi-exclamation-octagon"></i></div>
             <div class="opsi-title">Reset Data</div>
-
-            <!-- FORM RESET (tidak pakai confirm() inline) -->
             <form id="resetForm" class="d-grid" action="{{ url_for('reset_data') }}" method="POST">
-              <!-- tombol bukan submit, kita tampilkan modal dulu -->
               <button type="button" class="btn btn-outline-danger btn-pill needs-confirm-reset">
                 <i class="bi bi-trash3 me-1"></i> Reset Semua Data
               </button>
             </form>
-
             <div class="opsi-sub mt-2">Hapus semua file data di server</div>
           </div>
         </div>
       </div>
     </section>
 
-  </div>
-
-  <!-- Modal Konfirmasi Download -->
-  <div class="modal fade" id="confirmDownloadModal" tabindex="-1" aria-labelledby="confirmDownloadLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
+  </div> <div class="modal fade" id="confirmDownloadModal" tabindex="-1" aria-labelledby="confirmDownloadLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"> <div class="modal-content">
         <div class="modal-header">
           <h6 class="modal-title" id="confirmDownloadLabel"><i class="bi bi-download me-2"></i>Konfirmasi Unduhan</h6>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          Anda akan mengunduh: <strong id="fileLabel">File</strong>.<br/>
-          Lanjutkan unduh sekarang?
+          Anda akan mengunduh: <strong id="fileLabel">File</strong><br> <span id="filterInfo" class="text-muted small"></span> <br>Lanjutkan unduh sekarang?
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-          <a id="confirmDownloadBtn" href="#" class="btn btn-success">
-            <i class="bi bi-check2-circle me-1"></i> Unduh
+          <a id="confirmDownloadBtn" href="#" class="btn btn-success"> <i class="bi bi-check2-circle me-1"></i> Unduh
           </a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal Konfirmasi Reset -->
   <div class="modal fade" id="confirmResetModal" tabindex="-1" aria-labelledby="confirmResetLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -336,7 +238,6 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-          <!-- tombol ini yang submit form reset -->
           <button id="confirmResetBtn" type="button" class="btn btn-danger">
             <i class="bi bi-check2-circle me-1"></i> Ya, Reset Semua
           </button>
@@ -344,14 +245,16 @@
       </div>
     </div>
   </div>
-
-  <!-- JavaScript -->
-  <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
-  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-
-  <script>
+  <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script> <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script> <script>
+    // Jalankan setelah DOM siap
     document.addEventListener('DOMContentLoaded', function () {
-      const bagianFilter = new Choices('#bagian-filter', {
+      // Inisialisasi Choices.js untuk dropdown filter
+      const bagianFilterEl = document.getElementById('bagian-filter'); // <<< Ambil elemen select
+      const jenisFilterEl = document.getElementById('jenis-filter');   // <<< Ambil elemen select
+      const statusFilterEl = document.getElementById('status-filter'); // <<< Ambil elemen select
+      const searchInputEl = document.getElementById('search');       // <<< Ambil input search
+
+      const bagianFilter = new Choices(bagianFilterEl, { /* ... options ... */
         searchEnabled: true,
         itemSelectText: 'Pilih',
         shouldSort: false,
@@ -359,8 +262,7 @@
         placeholderValue: 'Semua Divisi / Bagian',
         removeItemButton: true,
       });
-
-      const statusFilter = new Choices('#status-filter', {
+      const statusFilter = new Choices(statusFilterEl, { /* ... options ... */
         searchEnabled: false,
         itemSelectText: 'Pilih',
         shouldSort: false,
@@ -368,8 +270,7 @@
         placeholderValue: 'Semua Status',
         removeItemButton: true,
       });
-
-      const jenisFilter = new Choices('#jenis-filter', {
+      const jenisFilter = new Choices(jenisFilterEl, { /* ... options ... */
         searchEnabled: true,
         itemSelectText: 'Pilih',
         shouldSort: false,
@@ -378,103 +279,155 @@
         removeItemButton: true,
       });
 
-      // Sinkron ikon panah + baris detail
-      document.querySelectorAll('.collapse').forEach(function (c) {
-        const id = c.getAttribute('id');
-        const detailTr = c.closest('tr.detail-row');
+      // --- Logic Expand/Collapse Row Detail ---
+      document.querySelectorAll('.collapse').forEach(function (collapseElement) {
+        const collapseId = collapseElement.getAttribute('id'); // ID elemen collapse
+        const detailTr = collapseElement.closest('tr.detail-row'); // Cari <tr> parent
 
-        c.addEventListener('show.bs.collapse', function () {
-          const icon = document.querySelector('.toggle-icon[data-target="' + id + '"]');
+        // Saat detail mulai ditampilkan (show)
+        collapseElement.addEventListener('show.bs.collapse', function () {
+          // Cari icon panah yang sesuai
+          const icon = document.querySelector('.toggle-icon[data-target="' + collapseId + '"]');
+          // Ubah icon jadi panah atas
           if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
+          // Tambah class 'is-open' ke <tr> detail (untuk styling border atas)
           if (detailTr) detailTr.classList.add('is-open');
         });
 
-        c.addEventListener('hide.bs.collapse', function () {
-          const icon = document.querySelector('.toggle-icon[data-target="' + id + '"]');
+        // Saat detail mulai disembunyikan (hide)
+        collapseElement.addEventListener('hide.bs.collapse', function () {
+          // Cari icon panah yang sesuai
+          const icon = document.querySelector('.toggle-icon[data-target="' + collapseId + '"]');
+          // Ubah icon jadi panah bawah
           if (icon) { icon.classList.remove('bi-chevron-up'); icon.classList.add('bi-chevron-down'); }
+          // Hapus class 'is-open' dari <tr> detail
           if (detailTr) detailTr.classList.remove('is-open');
         });
       });
 
-      // Auto-submit upload
-      const input = document.getElementById('importFile');
-      if (input) {
-        input.addEventListener('change', function(){
+      // --- Auto-submit form upload saat file dipilih ---
+      const inputFile = document.getElementById('importFile');
+      if (inputFile) {
+        inputFile.addEventListener('change', function(){
+          // Cek jika ada file dipilih
           if (!this.files || this.files.length === 0) return;
+          // Submit form jika ada file
           this.form && this.form.submit();
         });
       }
 
-      // Auto-hide flash (4s)
+      // --- Auto-hide pesan flash setelah 4 detik ---
       setTimeout(() => {
-        document.querySelectorAll('.flash-messages .alert').forEach(a => {
-          const alert = bootstrap.Alert.getOrCreateInstance(a);
-          alert.close();
+        document.querySelectorAll('.flash-messages .alert').forEach(alertElement => {
+          // Dapatkan instance Bootstrap Alert
+          const alertInstance = bootstrap.Alert.getOrCreateInstance(alertElement);
+          // Tutup alert
+          alertInstance.close();
         });
-      }, 4000);
+      }, 4000); // 4000 milidetik = 4 detik
 
-      // ====== KONFIRMASI & DOWNLOAD ======
-      const downloadModalEl = document.getElementById('confirmDownloadModal');
-      const downloadModal = new bootstrap.Modal(downloadModalEl);
-      const labelEl = document.getElementById('fileLabel');
-      const btnDownload = document.getElementById('confirmDownloadBtn');
-      const flashWrap = document.querySelector('.flash-messages');
+      // ====== POPUP KONFIRMASI DOWNLOAD (untuk tombol export) ======
+      const downloadModalEl = document.getElementById('confirmDownloadModal'); // Elemen modal
+      const downloadModal = new bootstrap.Modal(downloadModalEl); // Instance modal Bootstrap
+      const fileLabelEl = document.getElementById('fileLabel'); // Elemen untuk nama file di modal
+      const confirmBtnEl = document.getElementById('confirmDownloadBtn'); // Tombol "Unduh" di modal
+      const filterInfoEl = document.getElementById('filterInfo'); // <<< Elemen baru untuk info filter
+      const flashWrap = document.querySelector('.flash-messages'); // <<< Wrapper untuk notif JS
 
-      function pushFlash(message, type = 'success') { // feedback instan
+      //  Fungsi pushFlash untuk notif JS 
+      function pushFlash(message, type = 'success') { // Default ke success 
         const div = document.createElement('div');
-        div.className = `alert alert-${type} alert-dismissible fade show`;
+        // <<< Pastikan pakai alert-success 
+        div.className = `alert alert-${type === 'info' ? 'info' : 'success'} alert-dismissible fade show`;
         div.setAttribute('role','alert');
         div.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
-        flashWrap.prepend(div);
-        setTimeout(() => bootstrap.Alert.getOrCreateInstance(div).close(), 4000);
+        flashWrap.prepend(div); // Tampilkan di paling atas
+        setTimeout(() => bootstrap.Alert.getOrCreateInstance(div).close(), 4000); // Auto close
       }
 
-      function triggerDownload(url) { // download tanpa pindah halaman
+      // Fungsi triggerDownload (tetap pakai iframe)
+      function triggerDownload(url) { // download tanpa pindah halaman pakai iframe
         const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
+        iframe.style.display = 'none'; // Sembunyikan iframe
         iframe.src = url;
         document.body.appendChild(iframe);
+        // Hapus iframe setelah beberapa detik (misal 10 detik)
         setTimeout(() => iframe.remove(), 10000);
       }
 
-      document.body.addEventListener('click', function(e){
-        const a = e.target.closest('a.needs-confirm-download');
-        if (!a) return;
-        e.preventDefault();
-        labelEl.textContent = a.getAttribute('data-filelabel') || 'File';
-        btnDownload.setAttribute('href', a.getAttribute('href'));
+      // Pasang event listener di body untuk menangkap klik pada link export
+      document.body.addEventListener('click', function(event){
+        // Cari elemen <a> terdekat yang punya class 'needs-confirm-download'
+        const linkElement = event.target.closest('a.needs-confirm-download');
+        if (!linkElement) return; // Jika bukan link export, abaikan
+
+        // Hentikan aksi default link (jangan langsung download)
+        event.preventDefault();
+
+        // Ambil label file dari atribut data-filelabel
+        const fileLabel = linkElement.getAttribute('data-filelabel') || 'File';
+        // Ambil URL download dari atribut href
+        const downloadUrl = linkElement.getAttribute('href');
+
+        // Ambil nilai filter saat ini dan buat teks info filter
+        const currentSearch = searchInputEl ? searchInputEl.value : '';
+        const currentBagian = bagianFilterEl ? bagianFilterEl.value : '';
+        const currentJenis = jenisFilterEl ? jenisFilterEl.value : '';
+        const currentStatus = statusFilterEl ? statusFilterEl.value : '';
+
+        let filterTextParts = []; // Array untuk menyimpan teks filter
+        // Tambahkan teks hanya jika filter tidak kosong
+        if (currentBagian) filterTextParts.push(`Divisi: ${currentBagian}`);
+        if (currentJenis) filterTextParts.push(`Jenis: ${currentJenis}`);
+        if (currentStatus) filterTextParts.push(`Status: ${currentStatus}`);
+        if (currentSearch) filterTextParts.push(`Cari: '${currentSearch}'`);
+
+        let filterInfoText = "(Semua Data)"; // Teks default jika tidak ada filter
+        if (filterTextParts.length > 0) { // Jika ada filter aktif
+            filterInfoText = "(Filter: " + filterTextParts.join(" | ") + ")"; // Gabungkan teks filter
+        }
+
+        // Update teks dan link di dalam modal
+        fileLabelEl.textContent = fileLabel;
+        filterInfoEl.textContent = filterInfoText; // <<< MODIFIKASI: Tampilkan info filter
+        confirmBtnEl.setAttribute('href', downloadUrl);
+
+        // Tampilkan modal konfirmasi
         downloadModal.show();
       });
 
-      btnDownload.addEventListener('click', function(e){
-        e.preventDefault();
-        const url = btnDownload.getAttribute('href');
-        const label = labelEl.textContent || 'File';
-        downloadModal.hide();
-        pushFlash(`${label} siap diunduh.`, 'success');
-        triggerDownload(url);
+      // Event listener untuk tombol Unduh di modal download
+      confirmBtnEl.addEventListener('click', function(e){
+        e.preventDefault(); // Hentikan link default
+        const url = confirmBtnEl.getAttribute('href');
+        const label = fileLabelEl.textContent || 'File';
+        downloadModal.hide(); // Tutup modal
+        // Panggil pushFlash SEBELUM triggerDownload
+        pushFlash(`${label} siap diunduh.`, 'success'); // Tampilkan notif 
+        triggerDownload(url); // Trigger download di background pakai iframe
       });
+      
 
-      // ====== KONFIRMASI RESET  ======
-      const resetModalEl = document.getElementById('confirmResetModal');
-      const resetModal = new bootstrap.Modal(resetModalEl);
-      const resetBtn = document.querySelector('.needs-confirm-reset');
-      const confirmResetBtn = document.getElementById('confirmResetBtn');
-      const resetForm = document.getElementById('resetForm');
+      // ====== KONFIRMASI RESET ======
+      const resetModalEl = document.getElementById('confirmResetModal'); // <<< Elemen modal reset
+      const resetModal = new bootstrap.Modal(resetModalEl); // <<< Instance modal reset
+      const resetBtnTrigger = document.querySelector('.needs-confirm-reset'); // <<< Tombol yang trigger modal
+      const confirmResetBtn = document.getElementById('confirmResetBtn'); // <<< Tombol konfirmasi di modal
+      const resetForm = document.getElementById('resetForm'); // <<< Form reset
 
-      if (resetBtn) {
-        resetBtn.addEventListener('click', function(){
-          resetModal.show();
+      if (resetBtnTrigger) { // Jika tombol trigger ada
+        resetBtnTrigger.addEventListener('click', function(){ // Saat diklik
+          resetModal.show(); // Tampilkan modal reset
         });
       }
-      if (confirmResetBtn) {
-        confirmResetBtn.addEventListener('click', function(){
-          // submit form setelah user konfirmasi
-          resetModal.hide();
-          resetForm.submit();
+      if (confirmResetBtn) { // Jika tombol konfirmasi di modal ada
+        confirmResetBtn.addEventListener('click', function(){ // Saat diklik
+          resetModal.hide(); // Tutup modal
+          resetForm.submit(); // Submit form reset
         });
       }
-    });
+
+    }); // End DOMContentLoaded
   </script>
 </body>
 </html>
