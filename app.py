@@ -610,7 +610,7 @@ def build_bon_story(person: dict, jenis_filter: str | None = None, page_width: f
         [Paragraph("Nama", small_b), Paragraph(person.get("NAMA", "-"), small),
          Paragraph("Nomor", small_b), Paragraph(person.get("NOPEG", "-"), small)],
         [Paragraph("Bagian", small_b), Paragraph(person.get("BAGIAN", "-"), small),
-         Paragraph("Dicetak", small_b), Paragraph(now, small)]
+         Paragraph("Bulan", small_b), Paragraph(now, small)]
     ]
     t1 = Table(header_data, colWidths=id_cols)
     t1.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("BOTTOMPADDING", (0,0), (-1,-1), 4)]))
